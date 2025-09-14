@@ -1,0 +1,135 @@
+DOCUMENT UPLOAD AND PROCESSING INSTRUCTIONS
+============================================
+
+PURPOSE: Guide for uploading, retrieving, and processing new documents
+
+SCANNING AND RETRIEVAL
+----------------------
+
+1. PRIMARY SCAN LOCATION
+   Network Path: \\vmware-host\Shared Folders\Scanned Documents
+   
+   CHECK THIS FOLDER FOR:
+   - Newly scanned documents from scanner
+   - Documents saved from mobile scanning apps
+   - Files transferred from other devices
+   
+   ACCESSING FROM BASH/CLI:
+   - Windows path: \\vmware-host\Shared Folders\Scanned Documents
+   - Bash path: //vmware-host/Shared Folders/Scanned Documents
+   - Always use quotes for paths with spaces
+
+2. SCAN SETTINGS RECOMMENDATIONS
+   - Resolution: 150-300 DPI (optimal for OCR)
+   - Format: PDF preferred, PNG/JPG acceptable
+   - Color: Color scan for documents with logos/stamps
+   - Multi-page: Combine into single PDF when related
+
+3. FILE RETRIEVAL PROCESS
+   a. Check scan folder for new files
+   b. Identify document type (car, work, receipts, etc.)
+   c. Move to appropriate subfolder in upload/
+   d. Process according to type-specific instructions
+   e. Delete from scan folder after successful processing
+
+DOCUMENT ORGANIZATION
+---------------------
+
+Current Subfolders:
+- /cars/ - Vehicle-related documents (see CAR_DOCUMENT_PROCESSING_INSTRUCTIONS.txt)
+- Add new folders as needed for other document types
+
+PROCESSING WORKFLOW
+-------------------
+
+1. RETRIEVE NEW SCANS
+   - Check: \\vmware-host\Shared Folders\Scanned Documents
+   - Identify latest files by date
+   - Note: Files appear here immediately after scanning
+
+2. INITIAL CLASSIFICATION
+   - Examine document content
+   - Determine document category:
+     * Car/Vehicle -> Process per car instructions
+     * Work/Invoice -> Create work folder if needed
+     * Receipts -> Create receipts folder if needed
+     * Other -> Create appropriate category folder
+
+3. MOVE TO UPLOAD FOLDER
+   - Copy file from scan folder to appropriate upload subfolder
+   - Rename according to category-specific conventions
+   - Create metadata file if required
+
+4. APPLY CATEGORY RULES
+   - Each category should have its own instructions file
+   - Follow naming conventions for that category
+   - Organize into subfolders as specified
+
+5. CLEANUP
+   - After successful processing and verification
+   - Remove original from scan folder
+   - Keep processed version in upload subfolder
+
+ADDING NEW DOCUMENT TYPES
+-------------------------
+
+When encountering new document types:
+1. Create new subfolder in upload/
+2. Create [CATEGORY]_PROCESSING_INSTRUCTIONS.txt
+3. Define naming convention
+4. Specify folder organization
+5. Document metadata requirements
+
+MANUAL UPLOAD OPTIONS
+---------------------
+
+Besides scanning, documents can be added via:
+- Direct file copy to upload folder
+- Email attachments saved to folder
+- Downloaded files from web portals
+- Camera photos of documents
+- Mobile app exports
+
+COMMON ISSUES
+-------------
+
+1. Can't access network scan folder:
+   - Verify network connection
+   - Check VMware shared folders are enabled
+   - Try alternate path format (forward vs backslash)
+
+2. OCR quality issues:
+   - Rescan at higher DPI (200-300)
+   - Ensure document is flat and well-lit
+   - Use color scan for better text recognition
+
+3. Multi-page documents:
+   - Combine pages before processing
+   - Keep page order consistent
+   - Save as single PDF when possible
+
+BEST PRACTICES
+--------------
+
+- Process documents promptly after scanning
+- Maintain consistent naming conventions
+- Create backups before processing
+- Verify OCR accuracy for critical fields
+- Document any processing errors
+- Keep audit trail of processed files
+
+QUICK REFERENCE
+---------------
+
+Scan Folder: \\vmware-host\Shared Folders\Scanned Documents
+Upload Root: C:\Users\nando\Projects\anyqb\upload\
+Car Docs: C:\Users\nando\Projects\anyqb\upload\cars\
+
+SUPPORT
+-------
+
+For issues or questions:
+- Check category-specific instruction files
+- Review processing logs
+- Verify network connectivity
+- Ensure proper permissions on folders

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/vmware-host/Shared Folders/D/OneDrive/misc_documents/**)",
+      "Read(//c/Users/nando/Projects/archived_projects/anyQBMCP/quickbooks_standard/entities/bills/**)",
+      "Bash(python:*)",
+      "Read(//c/Users/nando/Projects/archived_projects/anyQBMCP/**)",
+      "Read(//c/Users/nando/Projects/archived_projects/**)",
+      "Read(//c/Users/nando/Projects/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

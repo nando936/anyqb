@@ -1,0 +1,319 @@
+{
+  "commands": {
+    "bill_commands": {
+      "GET_WORK_BILL": {
+        "description": "Get vendor's current week bill",
+        "params": ["vendor_name", "week"],
+        "examples": ["show me jaciel's bill", "get juan's bill for last week"]
+      },
+      "CREATE_WORK_BILL": {
+        "description": "Create new work bill",
+        "params": ["vendor_name", "daily_cost", "days_worked"],
+        "examples": ["create bill for elmer", "new bill for martinez with 150 daily"]
+      },
+      "UPDATE_WORK_BILL": {
+        "description": "Update work bill",
+        "params": ["vendor_name", "daily_cost", "add_days", "remove_days"],
+        "examples": ["update juan's bill", "add friday to jaciel's bill"]
+      },
+      "DELETE_BILL": {
+        "description": "Delete a bill",
+        "params": ["bill_id"],
+        "examples": ["delete bill 123", "remove bill ABC-001"]
+      },
+      "GET_WORK_WEEK_SUMMARY": {
+        "description": "Get work week summary",
+        "params": ["week"],
+        "examples": ["get this week's summary", "show me last week's totals"]
+      }
+    },
+    "payment_commands": {
+      "PAY_BILLS": {
+        "description": "Pay vendor bills",
+        "params": ["vendor_name", "amount"],
+        "examples": ["pay jaciel", "pay martinez 450"]
+      },
+      "CREATE_BILL_PAYMENT": {
+        "description": "Create bill payment",
+        "params": ["vendor_name", "amount", "date"],
+        "examples": ["create payment for vendor", "record payment to juan"]
+      },
+      "SEARCH_BILL_PAYMENTS": {
+        "description": "Search bill payments",
+        "params": ["vendor_name", "date_from", "date_to"],
+        "examples": ["show bill payments", "find payments to martinez"]
+      },
+      "DELETE_BILL_PAYMENT": {
+        "description": "Delete bill payment",
+        "params": ["payment_id"],
+        "examples": ["delete payment 456", "remove payment"]
+      },
+      "UPDATE_BILL_PAYMENT": {
+        "description": "Update bill payment",
+        "params": ["payment_id", "amount", "date"],
+        "examples": ["update payment", "change payment amount"]
+      }
+    },
+    "vendor_commands": {
+      "SEARCH_VENDORS": {
+        "description": "Search for vendors",
+        "params": ["search_term", "active_only"],
+        "examples": ["find vendor martinez", "search all vendors", "list vendors"]
+      },
+      "CREATE_VENDOR": {
+        "description": "Create new vendor",
+        "params": ["name", "daily_cost", "notes"],
+        "examples": ["create vendor bob with 150 daily", "add new vendor smith"]
+      },
+      "UPDATE_VENDOR": {
+        "description": "Update vendor info",
+        "params": ["vendor_id", "daily_cost", "notes"],
+        "examples": ["update vendor info", "change martinez daily to 175"]
+      }
+    },
+    "customer_commands": {
+      "SEARCH_CUSTOMERS": {
+        "description": "Search for customers",
+        "params": ["search_term", "active_only", "jobs_only"],
+        "examples": ["find customer smith", "search customers", "list all jobs"]
+      },
+      "CREATE_CUSTOMER": {
+        "description": "Create new customer",
+        "params": ["name", "company", "email", "phone"],
+        "examples": ["create new customer", "add customer john doe"]
+      }
+    },
+    "check_commands": {
+      "CREATE_CHECK": {
+        "description": "Create a check",
+        "params": ["payee", "amount", "account", "memo"],
+        "examples": ["write check to juan for 500", "create check for martinez"]
+      },
+      "SEARCH_CHECKS": {
+        "description": "Search checks",
+        "params": ["payee", "date_from", "date_to"],
+        "examples": ["find checks to elmer", "show all checks this month"]
+      },
+      "UPDATE_CHECK": {
+        "description": "Update check",
+        "params": ["check_id", "amount", "memo"],
+        "examples": ["update check 789", "change check amount"]
+      },
+      "DELETE_CHECK": {
+        "description": "Delete check",
+        "params": ["check_id"],
+        "examples": ["delete check 789", "remove check"]
+      },
+      "GET_CHECK": {
+        "description": "Get specific check",
+        "params": ["check_id"],
+        "examples": ["get check 789", "show check details"]
+      },
+      "GET_CHECKS_THIS_WEEK": {
+        "description": "Get this week's checks",
+        "params": [],
+        "examples": ["this week's checks", "show checks from this week"]
+      }
+    },
+    "invoice_commands": {
+      "SEARCH_INVOICES": {
+        "description": "Search invoices",
+        "params": ["customer", "date_from", "date_to", "status"],
+        "examples": ["search invoices", "find unpaid invoices"]
+      },
+      "GET_INVOICES_THIS_WEEK": {
+        "description": "Get this week's invoices",
+        "params": [],
+        "examples": ["this week's invoices", "show recent invoices"]
+      },
+      "GET_INVOICE": {
+        "description": "Get specific invoice",
+        "params": ["invoice_id"],
+        "examples": ["get invoice 1001", "show invoice details"]
+      },
+      "CREATE_INVOICE": {
+        "description": "Create invoice",
+        "params": ["customer", "items", "due_date"],
+        "examples": ["create invoice for customer", "new invoice for smith"]
+      },
+      "RECEIVE_INVOICE_PAYMENT": {
+        "description": "Receive invoice payment",
+        "params": ["invoice_id", "amount", "payment_method"],
+        "examples": ["receive payment for invoice 1001", "record payment"]
+      },
+      "SEARCH_INVOICE_PAYMENTS": {
+        "description": "Search invoice payments",
+        "params": ["customer", "date_from", "date_to"],
+        "examples": ["search payments", "find customer payments"]
+      },
+      "DELETE_INVOICE_PAYMENT": {
+        "description": "Delete invoice payment",
+        "params": ["payment_id"],
+        "examples": ["delete payment", "remove invoice payment"]
+      },
+      "UPDATE_INVOICE_PAYMENT": {
+        "description": "Update invoice payment",
+        "params": ["payment_id", "amount", "date"],
+        "examples": ["update payment", "change payment details"]
+      }
+    },
+    "deposit_commands": {
+      "SEARCH_DEPOSITS": {
+        "description": "Search deposits",
+        "params": ["date_from", "date_to", "account"],
+        "examples": ["search deposits", "show this week's deposits"]
+      },
+      "DEPOSIT_CUSTOMER_PAYMENT": {
+        "description": "Deposit customer payment",
+        "params": ["payments", "account", "date"],
+        "examples": ["deposit payment", "record deposit"]
+      }
+    },
+    "item_commands": {
+      "SEARCH_ITEMS": {
+        "description": "Search items",
+        "params": ["search_term", "item_type", "active_only"],
+        "examples": ["search items", "find service items", "list all products"]
+      },
+      "CREATE_ITEM": {
+        "description": "Create item",
+        "params": ["name", "type", "price", "description"],
+        "examples": ["create item", "add new service"]
+      },
+      "UPDATE_ITEM": {
+        "description": "Update item",
+        "params": ["item_id", "price", "description"],
+        "examples": ["update item", "change item price"]
+      }
+    },
+    "account_commands": {
+      "SEARCH_ACCOUNTS": {
+        "description": "Search accounts",
+        "params": ["search_term", "account_type"],
+        "examples": ["search accounts", "list bank accounts"]
+      },
+      "CREATE_ACCOUNT": {
+        "description": "Create account",
+        "params": ["name", "account_type", "opening_balance"],
+        "examples": ["create account", "add new bank account"]
+      },
+      "UPDATE_ACCOUNT": {
+        "description": "Update account",
+        "params": ["account_id", "name", "description"],
+        "examples": ["update account", "change account name"]
+      }
+    },
+    "purchase_order_commands": {
+      "CREATE_PURCHASE_ORDER": {
+        "description": "Create purchase order",
+        "params": ["vendor", "items", "ship_date"],
+        "examples": ["create PO", "new purchase order"]
+      },
+      "GET_PURCHASE_ORDERS": {
+        "description": "Get purchase orders",
+        "params": ["vendor", "status"],
+        "examples": ["show purchase orders", "list open POs"]
+      },
+      "DELETE_PURCHASE_ORDER": {
+        "description": "Delete purchase order",
+        "params": ["po_id"],
+        "examples": ["delete PO", "remove purchase order"]
+      },
+      "RECEIVE_PURCHASE_ORDER": {
+        "description": "Receive purchase order",
+        "params": ["po_id", "items_received"],
+        "examples": ["receive PO", "mark items received"]
+      }
+    },
+    "item_receipt_commands": {
+      "SEARCH_ITEM_RECEIPTS": {
+        "description": "Search item receipts",
+        "params": ["vendor", "date_from", "date_to"],
+        "examples": ["search receipts", "find item receipts"]
+      },
+      "DELETE_ITEM_RECEIPT": {
+        "description": "Delete item receipt",
+        "params": ["receipt_id"],
+        "examples": ["delete receipt", "remove item receipt"]
+      }
+    },
+    "transaction_commands": {
+      "SEARCH_TRANSACTIONS": {
+        "description": "Search transactions",
+        "params": ["type", "date_from", "date_to", "account"],
+        "examples": ["search transactions", "find all checks"]
+      },
+      "GET_TRANSACTION": {
+        "description": "Get transaction details",
+        "params": ["txn_id"],
+        "examples": ["get transaction", "show transaction details"]
+      },
+      "DELETE_TRANSACTION": {
+        "description": "Delete transaction",
+        "params": ["txn_id"],
+        "examples": ["delete transaction", "remove transaction"]
+      }
+    },
+    "payee_commands": {
+      "SEARCH_PAYEES": {
+        "description": "Search payees",
+        "params": ["search_term"],
+        "examples": ["search payees", "find payee"]
+      },
+      "UPDATE_PAYEE": {
+        "description": "Update payee info",
+        "params": ["payee_id", "name", "address"],
+        "examples": ["update payee", "change payee info"]
+      }
+    },
+    "report_commands": {
+      "GET_BALANCES": {
+        "description": "Get account balances",
+        "params": ["account_type"],
+        "examples": ["show balances", "get bank balances"]
+      },
+      "GET_CASH_FLOW": {
+        "description": "Get cash flow report",
+        "params": ["date_from", "date_to"],
+        "examples": ["cash flow report", "show cash flow"]
+      },
+      "GET_ACCOUNTS_RECEIVABLE": {
+        "description": "Get AR aging report",
+        "params": ["as_of_date"],
+        "examples": ["AR report", "accounts receivable"]
+      },
+      "GET_ACCOUNTS_PAYABLE": {
+        "description": "Get AP aging report",
+        "params": ["as_of_date"],
+        "examples": ["AP report", "accounts payable"]
+      },
+      "GET_PROFIT_LOSS": {
+        "description": "Get P&L report",
+        "params": ["date_from", "date_to"],
+        "examples": ["P&L report", "profit and loss"]
+      },
+      "GET_BALANCE_SHEET": {
+        "description": "Get balance sheet",
+        "params": ["as_of_date"],
+        "examples": ["balance sheet", "show balance sheet"]
+      }
+    },
+    "utility_commands": {
+      "HEALTH_CHECK": {
+        "description": "Check QB connection status",
+        "params": [],
+        "examples": ["health check", "check connection"]
+      },
+      "BACKUP_COMPANY": {
+        "description": "Backup company file",
+        "params": ["backup_path"],
+        "examples": ["backup company", "create backup"]
+      },
+      "GET_COMPANY_INFO": {
+        "description": "Get company information",
+        "params": [],
+        "examples": ["company info", "show company details"]
+      }
+    }
+  }
+}
