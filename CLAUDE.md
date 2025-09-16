@@ -11,32 +11,66 @@ AnyQB is a mobile-first web application that provides a natural language interfa
 
 ## Architecture Flow
 ```
-User Input → Mobile UI → FastAPI → Claude API → QB MCP → QuickBooks → Response
+User Input → Mobile UI → FastAPI → Claude API → QBConnector → QuickBooks → Response
 ```
+
+## Layered Architecture
+The project follows a clean layered architecture pattern:
+
+1. **Commands Layer** (connector.py)
+   - Entry point for all QB operations
+   - Routes commands to appropriate services
+   - Handles parameter validation and vendor resolution
+
+2. **Service Layer** (custom_systems/*/service.py)
+   - Business logic and workflow orchestration
+   - Coordinates between repositories and formatters
+   - Manages complex operations (e.g., work week calculations)
+
+3. **Repository Layer** (quickbooks_standard/entities/*/repository.py)
+   - Direct QuickBooks SDK interactions via QBFC
+   - Data access and CRUD operations
+   - Returns raw data from QuickBooks
+
+4. **Formatter Layer** (shared_utilities/*_formatter.py)
+   - ALL output formatting happens here
+   - Consistent display across commands
+   - Text formatting for CLI display
+
+**IMPORTANT**: The formatter layer is responsible for ALL formatting. Services should pass data to formatters, not format directly.
+
+## Quick Commands
+- `*` - Check comments.txt in the AnyQB project folder (C:\Users\nando\Projects\anyqb\comments.txt)
+- "show checks" or "sho checks" - Run GET_CHECKS_THIS_WEEK (not SEARCH_CHECKS)
 
 ## File Organization
 - `src/api/` - FastAPI server and Claude integration
 - `src/ui/` - Mobile web interface
 - `src/qb/` - QuickBooks connection logic
+  - `connector.py` - Command router (Commands Layer)
+  - `custom_systems/` - Business logic (Service Layer)
+  - `quickbooks_standard/` - QB SDK operations (Repository Layer)
+  - `shared_utilities/` - Formatters and utilities
 - `src/utils/` - Shared utilities
 - `src/config/` - Configuration files
 
 ## Development Workflow
 1. Always test on mobile viewport (390x844)
-2. Use existing QB command definitions from anyQBMCP
-3. Keep Claude API responses under 200 tokens
-4. Log all QB command executions
-5. Handle errors gracefully with user-friendly messages
+2. Keep Claude API responses under 200 tokens
+3. Log all QB command executions
+4. Handle errors gracefully with user-friendly messages
 
 ## QB Integration
-- **IMPORTANT**: MCP server and anyQBMCP projects are now ARCHIVED
-- **ARCHIVED LOCATION**: `C:\Users\nando\Projects\archived_projects\anyQBMCP`
 - **USE QBConnector directly** via `python qbc.py` command
 - **Simple command format**: `python qbc.py <COMMAND> param1=value1 param2=value2`
 - **Example**: `python qbc.py GET_WORK_BILL vendor_name=Adrian`
 - **For complex params**: Use JSON format like `remove_days='["friday"]'`
 - All commands are in src/qb/connector.py lines 71-122
-- Archived project has full QB SDK implementations for reference
+
+### Archived MCP Reference
+- **MCP/anyQBMCP projects are ARCHIVED** - Do not use for active development
+- **ARCHIVED LOCATION**: `C:\Users\nando\Projects\archived_projects\anyQBMCP`
+- Only reference archived code when needed for QB SDK implementation details
 
 ## Testing Requirements
 - Mobile viewport testing is mandatory
@@ -73,14 +107,53 @@ User Input → Mobile UI → FastAPI → Claude API → QB MCP → QuickBooks �
 - Restrict Claude to QB operations only
 - Log security events
 
-## QB Command Output Display Rules
-**CRITICAL: When showing QB command results in this chat:**
-1. **Execute QB commands using QBConnector directly** (e.g., `python get_bill.py Adrian`)
-2. **ALWAYS manually copy the actual command output to chat**
-3. **NEVER summarize or paraphrase the output**
-4. **Show the complete raw output as returned by QBConnector**
-5. **Do not provide your own formatted summary**
-6. **The user wants to see exactly what the system returns**
+## CRITICAL QB COMMAND OUTPUT DISPLAY RULES - VIOLATION = FAILURE
+**ABSOLUTE LAW: When showing QB command results in this chat:**
+
+### PRE-COMMAND CHECKLIST:
+Before running ANY QB command, confirm:
+☐ I will run the actual command
+☐ I will copy ALL output to chat
+☐ I will show output FIRST before explaining
+☐ I will NOT summarize the output
+
+### THE THREE COMMANDMENTS:
+1. **Execute QB commands using QBConnector directly** (e.g., `python qbc.py GET_CHECK`)
+2. **IMMEDIATELY COPY the ENTIRE output to chat** - Every single line
+3. **PASTE FIRST, explain second** - Output must appear before any commentary
+
+### POST-COMMAND CHECKLIST:
+After running ANY QB command, verify:
+☐ Did I paste the output?
+☐ Is it the COMPLETE output?
+☐ Did I show it BEFORE explaining?
+☐ Can user see EXACTLY what system returned?
+
+### FAILURE CONSEQUENCES:
+If you fail to display output containing "[CLAUDE: Display this output in chat]":
+- ❌ CRITICAL ERROR - Task failed
+- ❌ User must ask again - Time wasted
+- ❌ You must apologize and re-run command
+- ❌ This is logged as a failure
+
+### NEVER DO THIS:
+- ❌ "The command succeeded" (without showing output)
+- ❌ "Here's what it returned:" (then summarizing)
+- ❌ "The check was created with ID..." (without full output)
+
+### ALWAYS DO THIS:
+- ✅ Run command
+- ✅ See "=== ACTUAL QB COMMAND OUTPUT ==="
+- ✅ IMMEDIATELY copy everything and paste
+- ✅ THEN explain what happened
+
+## Vendor Payment Settings
+The system automatically applies vendor-specific check numbers when paying bills:
+- **Jaciel** → Check number: "ATM"
+- **Adrian, Elmer, Selvin, Bryan** → Check number: "Zelle"
+
+Settings are defined in `src/config/vendor_payment_settings.json` and automatically applied during PAY_BILLS command.
+Can be overridden by passing explicit `check_number` parameter.
 
 ## Common QB Commands via qbc.py
 All commands use format: `python qbc.py <COMMAND> param1=value1`

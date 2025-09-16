@@ -1,0 +1,36 @@
+{
+  "debit_cards": {
+    "6664": {
+      "account": "3245 for 6664 card",
+      "quickbooks_account": "3245 for 6664 card",
+      "active": true
+    },
+    "8631": {
+      "account": "3841 for 8631card",
+      "quickbooks_account": "3841 for 8631card",
+      "active": true
+    },
+    "5635": {
+      "account": "1887 b",
+      "quickbooks_account": "1887 b",
+      "active": true
+    }
+  },
+  "credit_cards": {},
+  "check_ranges": {
+    "ATM": {
+      "account": "[MUST ASK USER]",
+      "type": "ATM Withdrawal"
+    },
+    "Zelle": {
+      "account": "[MUST ASK USER]",
+      "type": "Electronic Transfer"
+    }
+  },
+  "notes": [
+    "Match payment methods by last 4 digits of card",
+    "ATM and Zelle are special check number values",
+    "Add new cards as they are encountered",
+    "NO DEFAULTS - always ask user if payment method not found"
+  ]
+}

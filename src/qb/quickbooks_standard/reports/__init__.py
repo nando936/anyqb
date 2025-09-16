@@ -1,1 +1,1 @@
-# QuickBooks Reports Module
+# Reports module for QuickBooks reports and searches

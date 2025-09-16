@@ -115,21 +115,44 @@ class ItemReceiptRepository:
             'txn_id': receipt_elem.find('TxnID').text if receipt_elem.find('TxnID') is not None else '',
             'ref_number': receipt_elem.find('RefNumber').text if receipt_elem.find('RefNumber') is not None else '',
             'vendor': receipt_elem.find('.//VendorRef/FullName').text if receipt_elem.find('.//VendorRef/FullName') is not None else '',
+            'txn_date': receipt_elem.find('TxnDate').text if receipt_elem.find('TxnDate') is not None else '',
             'date': receipt_elem.find('TxnDate').text if receipt_elem.find('TxnDate') is not None else '',
             'memo': receipt_elem.find('Memo').text if receipt_elem.find('Memo') is not None else '',
-            'line_items': []
+            'line_items': [],
+            'total_amount': 0.0
         }
-        
+
+        # Check for linked PO
+        link_to_txn = receipt_elem.find('LinkToTxnID')
+        if link_to_txn is not None:
+            receipt['linked_po_txn_id'] = link_to_txn.text
+
+        # Check for LinkedTxn elements (shows what this receipt is linked to)
+        for linked in receipt_elem.findall('.//LinkedTxn'):
+            txn_type = linked.find('TxnType').text if linked.find('TxnType') is not None else ''
+            if txn_type == 'PurchaseOrder':
+                receipt['linked_po'] = linked.find('RefNumber').text if linked.find('RefNumber') is not None else ''
+                receipt['linked_po_txn_id'] = linked.find('TxnID').text if linked.find('TxnID') is not None else ''
+                break
+
         # Parse line items
+        total = 0.0
         for line in receipt_elem.findall('.//ItemLineRet'):
             item_name = line.find('.//ItemRef/FullName').text if line.find('.//ItemRef/FullName') is not None else ''
             qty = line.find('Quantity').text if line.find('Quantity') is not None else '0'
-            
+            amount = line.find('Amount').text if line.find('Amount') is not None else '0'
+
+            item_amount = float(amount) if amount else 0.0
+            total += item_amount
+
             receipt['line_items'].append({
                 'item': item_name,
-                'quantity': float(qty)
+                'quantity': float(qty),
+                'amount': item_amount
             })
-        
+
+        receipt['total_amount'] = total
+
         return receipt
     
     def delete_item_receipt(self, txn_id: str) -> Dict[str, Any]:

@@ -272,51 +272,9 @@ class BillRepository:
                 if bill_list is not None:
                     for i in range(bill_list.Count):
                         bill = bill_list.GetAt(i)
-                        bill_dict = {
-                            'txn_id': bill.TxnID.GetValue(),
-                            'vendor_name': bill.VendorRef.FullName.GetValue() if hasattr(bill, 'VendorRef') else 'Unknown',
-                            'ref_number': bill.RefNumber.GetValue() if hasattr(bill, 'RefNumber') else '',
-                            'txn_date': str(bill.TxnDate.GetValue()) if hasattr(bill, 'TxnDate') else '',
-                            'amount_due': float(bill.AmountDue.GetValue()) if hasattr(bill, 'AmountDue') else 0.0,
-                            'is_paid': bill.IsPaid.GetValue() if hasattr(bill, 'IsPaid') else False,
-                            'memo': bill.Memo.GetValue() if hasattr(bill, 'Memo') else '',
-                            'line_items': []
-                        }
-
-                        # Process line items if included - using the correct structure
-                        if include_line_items:
-                            # Process item lines (using ORItemLineRetList like in get_bill)
-                            if hasattr(bill, 'ORItemLineRetList') and bill.ORItemLineRetList:
-                                for j in range(bill.ORItemLineRetList.Count):
-                                    line_ret = bill.ORItemLineRetList.GetAt(j)
-                                    if hasattr(line_ret, 'ItemLineRet'):
-                                        item_line = line_ret.ItemLineRet
-                                        line_dict = {
-                                            'type': 'item',
-                                            'item_name': item_line.ItemRef.FullName.GetValue() if hasattr(item_line, 'ItemRef') and hasattr(item_line.ItemRef, 'FullName') else '',
-                                            'description': item_line.Desc.GetValue() if hasattr(item_line, 'Desc') else '',
-                                            'quantity': float(item_line.Quantity.GetValue()) if hasattr(item_line, 'Quantity') else 0.0,
-                                            'cost': float(item_line.Cost.GetValue()) if hasattr(item_line, 'Cost') else 0.0,
-                                            'amount': float(item_line.Amount.GetValue()) if hasattr(item_line, 'Amount') else 0.0,
-                                            'customer_name': item_line.CustomerRef.FullName.GetValue() if hasattr(item_line, 'CustomerRef') and hasattr(item_line.CustomerRef, 'FullName') else ''
-                                        }
-                                        bill_dict['line_items'].append(line_dict)
-
-                            # Process expense lines
-                            if hasattr(bill, 'ORExpenseLineRetList') and bill.ORExpenseLineRetList:
-                                for j in range(bill.ORExpenseLineRetList.Count):
-                                    line_ret = bill.ORExpenseLineRetList.GetAt(j)
-                                    if hasattr(line_ret, 'ExpenseLineRet'):
-                                        expense_line = line_ret.ExpenseLineRet
-                                        line_dict = {
-                                            'type': 'expense',
-                                            'account_name': expense_line.AccountRef.FullName.GetValue() if hasattr(expense_line, 'AccountRef') and hasattr(expense_line.AccountRef, 'FullName') else '',
-                                            'amount': float(expense_line.Amount.GetValue()) if hasattr(expense_line, 'Amount') else 0.0,
-                                            'memo': expense_line.Memo.GetValue() if hasattr(expense_line, 'Memo') else '',
-                                            'customer_name': expense_line.CustomerRef.FullName.GetValue() if hasattr(expense_line, 'CustomerRef') and hasattr(expense_line.CustomerRef, 'FullName') else ''
-                                        }
-                                        bill_dict['line_items'].append(line_dict)
-
+                        # Use _parse_bill_from_sdk to get complete bill data including payment info
+                        bill_dict = self._parse_bill_from_sdk(bill)
+                        # _parse_bill_from_sdk already handles line items and payment info
                         bills.append(bill_dict)
 
                 logger.info(f"Found {len(bills)} bills in date range")

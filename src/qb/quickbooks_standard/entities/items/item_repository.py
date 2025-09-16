@@ -217,18 +217,25 @@ class ItemRepository:
                 logger.warning("No items found in QuickBooks")
                 return None
             
-            # Extract item names for matching
-            item_names = [item['name'] for item in all_items if item.get('name')]
-            
+            # Extract both names and full_names for matching (to handle sub-items)
+            item_names = []
+            name_to_item = {}
+            for item in all_items:
+                if item.get('name'):
+                    item_names.append(item['name'])
+                    name_to_item[item['name']] = item
+                # Also add full_name if different from name (for sub-items)
+                if item.get('full_name') and item['full_name'] != item['name']:
+                    item_names.append(item['full_name'])
+                    name_to_item[item['full_name']] = item
+
             # Find best match
             match_result = self.fuzzy_matcher.match_item(query, item_names)
-            
+
             if match_result.found:
                 logger.info(f"Item fuzzy match: {match_result}")
-                # Find the full item data
-                for item in all_items:
-                    if item.get('name') == match_result.exact_name:
-                        return item
+                # Return the matched item
+                return name_to_item.get(match_result.exact_name)
             
             logger.warning(f"No fuzzy match found for item: {query}")
             return None

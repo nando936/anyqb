@@ -1,0 +1,35 @@
+{
+  "vendor_payment_settings": {
+    "jaciel": {
+      "check_number": "ATM",
+      "payment_method": "Check",
+      "memo_prefix": "ATM withdrawal for"
+    },
+    "zelle payment to adrian carpente": {
+      "check_number": "Zelle",
+      "payment_method": "Check",
+      "memo_prefix": "Zelle payment to"
+    },
+    "elmer": {
+      "check_number": "Zelle",
+      "payment_method": "Check",
+      "memo_prefix": "Zelle payment to"
+    },
+    "selvin": {
+      "check_number": "Zelle",
+      "payment_method": "Check",
+      "memo_prefix": "Zelle payment to"
+    },
+    "bryan": {
+      "check_number": "Zelle",
+      "payment_method": "Check",
+      "memo_prefix": "Zelle payment to"
+    }
+  },
+  "description": "Vendor-specific payment settings for check numbers and payment methods",
+  "notes": [
+    "These settings are automatically applied when paying bills",
+    "Can be overridden by passing check_number parameter explicitly",
+    "Vendor names are matched case-insensitively"
+  ]
+}

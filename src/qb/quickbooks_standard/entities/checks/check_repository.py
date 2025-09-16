@@ -496,13 +496,11 @@ class CheckRepository:
                         if 'class' in line_item:
                             expense_line.ClassRef.FullName.SetValue(line_item['class'])
                         
-                        # Default to non-billable unless explicitly set
-                        if 'billable' in line_item:
-                            expense_line.BillableStatus.SetValue(
-                                1 if line_item['billable'] else 0  # 1=Billable, 0=NotBillable
-                            )
-                        else:
-                            expense_line.BillableStatus.SetValue(0)  # Default to non-billable
+                        # Only set billable status if explicitly requested as billable
+                        # For non-billable items, don't set the field at all as some items don't support it
+                        if line_item.get('billable', False):  # Only set if True
+                            expense_line.BillableStatus.SetValue(1)  # 1=Billable
+                        # Don't set BillableStatus at all if False (default behavior)
                     
                     elif line_item.get('item'):
                         # Item line - use ItemLineAdd structure
@@ -527,13 +525,11 @@ class CheckRepository:
                         if 'class' in line_item:
                             item_line.ClassRef.FullName.SetValue(line_item['class'])
                         
-                        # Default to non-billable unless explicitly set
-                        if 'billable' in line_item:
-                            item_line.BillableStatus.SetValue(
-                                1 if line_item['billable'] else 0  # 1=Billable, 0=NotBillable
-                            )
-                        else:
-                            item_line.BillableStatus.SetValue(0)  # Default to non-billable
+                        # Only set billable status if explicitly requested as billable
+                        # For non-billable items, don't set the field at all as some items don't support it
+                        if line_item.get('billable', False):  # Only set if True
+                            item_line.BillableStatus.SetValue(1)  # 1=Billable
+                        # Don't set BillableStatus at all if False (default behavior)
             
             # Process the request
             response_set = fast_qb_connection.process_request_set(request_set)

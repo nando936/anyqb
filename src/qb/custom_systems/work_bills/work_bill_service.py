@@ -79,9 +79,27 @@ class WorkBillService:
                 else:
                     logger.warning(f"No vendor found matching '{vendor_name}' - using as-is")
             
-            # Get bills from repository (proper architecture)
-            bills = self.bill_repo.find_bills_by_vendor(vendor_name, include_line_items=True) if vendor_name else []
-            logger.info(f"Found {len(bills) if bills else 0} bills")
+            # Calculate date range for the week first (like work week summary does)
+            week_dates = self._calculate_week_dates(week if week else 'current')
+            if not week_dates:
+                # Fallback to current week if calculation fails
+                week_dates = self._calculate_week_dates('current')
+
+            # Get ALL bills for the week using date range (proper architecture - like work week summary)
+            start_date = week_dates['monday'].strftime('%Y-%m-%d')  # Repository expects Y-M-D format
+            end_date = week_dates['saturday'].strftime('%Y-%m-%d')   # Repository expects Y-M-D format
+            logger.info(f"Searching bills by date range: {start_date} to {end_date}")
+
+            # Use find_bills_by_date_range like work week summary does
+            all_bills = self.bill_repo.find_bills_by_date_range(start_date, end_date, include_line_items=True)
+
+            # Now filter for the specific vendor if vendor_name provided
+            if vendor_name:
+                bills = [bill for bill in all_bills if bill.get('vendor_name', '').lower() == vendor_name.lower()]
+                logger.info(f"Found {len(bills)} bills for {vendor_name} in week {start_date} to {end_date}")
+            else:
+                bills = all_bills
+                logger.info(f"Found {len(bills) if bills else 0} total bills in week")
             
             if not bills:
                 week_desc = self._get_week_description(week) if week else "this week"
@@ -139,9 +157,11 @@ class WorkBillService:
                 days_since_monday = today.weekday()
                 current_monday = today - timedelta(days=days_since_monday)
                 current_saturday = current_monday + timedelta(days=5)
-                week_str = f"{current_monday.strftime('%m/%d/%y')} - {current_saturday.strftime('%m/%d/%y')}"
+                current_sunday = current_monday + timedelta(days=6)
+                week_str_sat = f"{current_monday.strftime('%m/%d/%y')} - {current_saturday.strftime('%m/%d/%y')}"
+                week_str_sun = f"{current_monday.strftime('%m/%d/%y')} - {current_sunday.strftime('%m/%d/%y')}"
                 week_ref = f"{vendor_name.lower()}_{current_monday.strftime('%m%d%y')}"
-                
+
                 # Check each bill for current week
                 for bill in bills:
                     memo = bill.get('memo')
@@ -150,12 +170,21 @@ class WorkBillService:
                     ref = bill.get('ref_number')
                     if ref is None:
                         ref = ''
-                    
-                    # Check if this is current week's bill
+
+                    # Check if this is current week's bill (handles both Saturday and Sunday end dates)
                     try:
-                        if week_str in memo or (ref and (week_ref in ref or current_monday.strftime('%m%d%y') in ref)):
+                        # Check for Saturday or Sunday week strings in memo
+                        if week_str_sat in memo or week_str_sun in memo:
                             target_bill = bill
                             break
+                        # Check ref number patterns (includes checking for bills with Sunday dates like ja_09/15-09/21/25)
+                        if ref:
+                            # Check if ref contains vendor initials and Monday date
+                            if current_monday.strftime('%m/%d') in ref or current_monday.strftime('%m%d') in ref:
+                                # Also check if it's within the week range
+                                if current_saturday.strftime('%m/%d') in ref or current_sunday.strftime('%m/%d') in ref or current_saturday.strftime('%m%d') in ref or current_sunday.strftime('%m%d') in ref:
+                                    target_bill = bill
+                                    break
                     except TypeError as e:
                         logger.error(f"Type error checking bill: memo={memo}, ref={ref}, error={e}")
                         continue
@@ -192,7 +221,10 @@ class WorkBillService:
                 # Add payment and status info
                 'IsPaid': target_bill.get('is_paid', False),
                 'open_amount': target_bill.get('open_amount'),
-                'payment_info': target_bill.get('payment_info', {})
+                'payment_info': target_bill.get('payment_info', {}),
+                # Add payments field that formatter expects
+                'payments': target_bill.get('payment_info', {}).get('payments', []),
+                'amount_paid': target_bill.get('payment_info', {}).get('amount_paid', 0)
             }
             
             # Transform line items for work bill display
@@ -438,8 +470,9 @@ class WorkBillService:
                 today = datetime.now()
                 days_since_monday = today.weekday()
                 current_monday = today - timedelta(days=days_since_monday)
+                current_saturday = current_monday + timedelta(days=5)
                 current_sunday = current_monday + timedelta(days=6)
-                
+
                 # Get vendor initials: first 2 letters of first name
                 # If vendor has first and last name, use first letter of each
                 parts = vendor_name.split()
@@ -449,7 +482,7 @@ class WorkBillService:
                 else:
                     # Multiple names - use first letter of each (first 2 parts)
                     initials = ''.join([p[0].lower() for p in parts[:2]])
-                
+
                 # Format: xx_MM/DD-MM/DD/YY
                 ref_number = f"{initials}_{current_monday.strftime('%m/%d')}-{current_sunday.strftime('%m/%d/%y')}"
                 # Ensure under 20 chars (QB limit)
@@ -632,10 +665,64 @@ class WorkBillService:
                         })
                 
                 logger.info(f"Total items to modify (in original order): {len(update_data['line_items_to_modify'])}")
-            
+
+            # Handle job updates - change the job assignment for existing line items
+            if 'update_jobs' in week_data and week_data['update_jobs']:
+                if 'line_items_to_modify' not in update_data:
+                    update_data['line_items_to_modify'] = []
+
+                logger.info(f"Processing job updates: {week_data['update_jobs']}")
+
+                for existing_item in existing_bill['line_items']:
+                    txn_line_id = existing_item.get('txn_line_id')
+                    if not txn_line_id:
+                        continue
+
+                    current_job = existing_item.get('customer_name', '')
+
+                    # Check if this job needs to be updated
+                    if current_job in week_data['update_jobs']:
+                        new_job = week_data['update_jobs'][current_job]
+                        logger.info(f"Updating job from '{current_job}' to '{new_job}' for TxnLineID={txn_line_id}")
+
+                        # Use resolve_customer_or_job to get the proper customer reference
+                        resolved_job = self.customer_repo.resolve_customer_or_job(new_job)
+
+                        if not resolved_job:
+                            logger.error(f"Customer/job '{new_job}' not found")
+                            return {
+                                'success': False,
+                                'error': f"Customer/job '{new_job}' not found"
+                            }
+
+                        logger.info(f"Resolved job '{new_job}' to '{resolved_job}'")
+
+                        update_data['line_items_to_modify'].append({
+                            'txn_line_id': txn_line_id,
+                            'description': existing_item.get('description'),
+                            'quantity': existing_item.get('quantity'),
+                            'cost': existing_item.get('cost'),
+                            'amount': existing_item.get('amount'),
+                            'item_ref': existing_item.get('item_ref'),
+                            'customer': resolved_job,  # Use 'customer' field with resolved name
+                            'billable_status': 1  # 1 = Not Billable
+                        })
+                    else:
+                        # Preserve unchanged items
+                        update_data['line_items_to_modify'].append({
+                            'txn_line_id': txn_line_id,
+                            'description': existing_item.get('description'),
+                            'quantity': existing_item.get('quantity'),
+                            'cost': existing_item.get('cost'),
+                            'amount': existing_item.get('amount'),
+                            'item_ref': existing_item.get('item_ref'),
+                            'customer': existing_item.get('customer_name'),  # Use existing customer name
+                            'billable_status': 1  # 1 = Not Billable
+                        })
+
             # Handle explicit removals (when specified via 'remove_days' parameter)
             # Supports multiple methods: by day name, by TxnLineID, or by day+item+job
-            if 'remove_days' in week_data:
+            elif 'remove_days' in week_data:
                 if 'line_items_to_delete' not in update_data:
                     update_data['line_items_to_delete'] = []
                 
@@ -824,8 +911,9 @@ class WorkBillService:
                     item = self.item_repo.find_item_fuzzy(item_name)
                     resolved_item_name = None
                     if item:
-                        line_item['item_name'] = item['name']
-                        resolved_item_name = item['name']
+                        # Use full_name for sub-items, otherwise use name
+                        line_item['item_name'] = item.get('full_name') or item['name']
+                        resolved_item_name = item.get('full_name') or item['name']
                     else:
                         line_item['item_name'] = item_name  # Use as-is if not found
                         resolved_item_name = item_name
@@ -890,7 +978,7 @@ class WorkBillService:
                             if 'item' in day_data:
                                 item = self.item_repo.find_item_fuzzy(day_data['item'])
                                 if item:
-                                    mod_item['item_name'] = item['name']
+                                    mod_item['item_name'] = item.get('full_name') or item['name']
                             
                             update_data['line_items_to_modify'].append(mod_item)
                             break
@@ -1014,8 +1102,10 @@ class WorkBillService:
                                     # Use fuzzy matching to find the actual item
                                     item = self.item_repo.find_item_fuzzy(new_item_name)
                                     if item:
-                                        mod_item['item_name'] = item['name']
-                                        logger.info(f"[UPDATE_DAYS] Updating item from '{existing_item.get('item_name')}' to '{item['name']}' (fuzzy matched from '{new_item_name}')")
+                                        # Use full_name for sub-items
+                                        resolved_name = item.get('full_name') or item['name']
+                                        mod_item['item_name'] = resolved_name
+                                        logger.info(f"[UPDATE_DAYS] Updating item from '{existing_item.get('item_name')}' to '{resolved_name}' (fuzzy matched from '{new_item_name}')")
                                     else:
                                         logger.warning(f"[UPDATE_DAYS] Could not find item '{new_item_name}' - keeping existing item")
                                         # Keep the existing item if fuzzy match fails
@@ -1252,7 +1342,8 @@ class WorkBillService:
                     item_name = day_data.get('item', 'repairs')
                     item = self.item_repo.find_item_fuzzy(item_name)
                     if item:
-                        line_item['item_name'] = item['name']
+                        # Use full_name for sub-items
+                        line_item['item_name'] = item.get('full_name') or item['name']
                     else:
                         line_item['item_name'] = item_name
                     

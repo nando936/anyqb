@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import pywintypes
 from shared_utilities.fast_qb_connection import fast_qb_connection
+from shared_utilities.fuzzy_matcher import FuzzyMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class OtherNameRepository:
     
     def __init__(self):
         """Initialize other name repository"""
-        pass
+        self.fuzzy_matcher = FuzzyMatcher()
     
     def create_other_name(self, name: str, company_name: Optional[str] = None) -> Optional[Dict]:
         """
@@ -181,16 +182,9 @@ class OtherNameRepository:
             request_set = fast_qb_connection.create_request_set()
             other_query = request_set.AppendOtherNameQueryRq()
             
-            # Set active status filter
-            if active_only:
-                other_query.ActiveStatus.SetValue(1)  # Active only
-            else:
-                other_query.ActiveStatus.SetValue(2)  # All
-            
-            # Add name filter if provided
-            if search_term:
-                other_query.ORListQuery.ListFilter.ORNameFilter.NameFilter.MatchCriterion.SetValue(5)  # Contains
-                other_query.ORListQuery.ListFilter.ORNameFilter.NameFilter.Name.SetValue(search_term)
+            # Don't set active status - OtherNameQuery doesn't support it
+            # Get all and filter with fuzzy matching later
+            # Don't add any filters - get all Other Names
             
             # Process the request
             response_set = fast_qb_connection.process_request_set(request_set)
@@ -210,8 +204,16 @@ class OtherNameRepository:
                 other_ret = response.Detail.GetAt(i)
                 other_data = self._parse_other_name_from_sdk(other_ret)
                 if other_data:
-                    other_names.append(other_data)
-            
+                    # Apply fuzzy matching if search term provided
+                    if search_term:
+                        name = other_data.get('name', '')
+                        match_result = self.fuzzy_matcher.find_best_match(search_term, [name])
+                        if match_result.confidence >= 0.75:  # 75% confidence threshold
+                            other_names.append(other_data)
+                    else:
+                        # No search term, include all
+                        other_names.append(other_data)
+
             return other_names
             
         except Exception as e:

@@ -1,1 +1,1 @@
-# Other Names entity module
+# Other Name repository module

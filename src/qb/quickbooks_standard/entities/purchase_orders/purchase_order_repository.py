@@ -6,18 +6,19 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import xml.etree.ElementTree as ET
 import logging
-from shared_utilities.fuzzy_matcher import FuzzyMatcher
-from shared_utilities.xml_qb_connection import XMLQBConnection
+from qb.shared_utilities.fuzzy_matcher import FuzzyMatcher
+from qb.shared_utilities.xml_qb_connection import XMLQBConnection
+from qb.shared_utilities.fast_qb_connection import FastQBConnection
 
 logger = logging.getLogger(__name__)
 
 class PurchaseOrderRepository:
     """Repository for purchase order operations"""
-    
+
     def __init__(self):
         self.connection = XMLQBConnection()
         self.fuzzy_matcher = FuzzyMatcher()
-    
+
     def create_purchase_order(
         self,
         vendor_name: str,
@@ -31,146 +32,111 @@ class PurchaseOrderRepository:
     ) -> Dict[str, Any]:
         """
         Create a new purchase order in QuickBooks
-        
+
         Args:
-            vendor_name: Vendor name
-            items: List of item lines, each dict should have:
-                - item: Item name (required)
-                - quantity: Quantity (default: 1)
-                - rate: Unit cost (optional)
-                - amount: Total amount (optional)
-                - description: Line description (optional)
-                - customer_job: Customer:Job for job costing (optional)
-            date: PO date (MM-DD-YYYY or MM/DD/YYYY)
-            ref_number: PO number (auto-generated if not provided)
+            vendor_name: Name of the vendor (will be fuzzy matched)
+            items: List of items to order, each dict should have:
+                - item: Item name (will be fuzzy matched)
+                - quantity: Quantity to order
+                - rate: Optional rate per unit
+                - customer_job: Optional customer:job assignment
+            date: Order date (defaults to today)
+            ref_number: PO reference number (QuickBooks will auto-generate if not provided)
             expected_date: Expected delivery date
             memo: Internal memo
-            vendor_msg: Message to vendor
-            ship_to: Ship to address
-        
+            vendor_msg: Message to vendor (prints on PO)
+            ship_to: Shipping address
+
         Returns:
             Dictionary with PO details or error
         """
         if not self.connection.connect():
             logger.error("Failed to connect to QuickBooks")
             return {'error': 'Failed to connect to QuickBooks'}
-        
+
         try:
-            # Fuzzy match vendor name
-            from quickbooks_standard.entities.vendors.vendor_repository import VendorRepository
-            from quickbooks_standard.entities.items.item_repository import ItemRepository
-            
+            # Fuzzy match the vendor name
+            from qb.quickbooks_standard.entities.vendors.vendor_repository import VendorRepository
             vendor_repo = VendorRepository()
-            vendors = vendor_repo.search_vendors(active_only=True)
-            
-            # Get list of vendor names for fuzzy matching
-            vendor_names = [v['name'] for v in vendors]
+            all_vendors = vendor_repo.get_all_vendors()
+            vendor_names = [v['name'] for v in all_vendors if v.get('is_active', True)]
+
             vendor_match = self.fuzzy_matcher.find_best_match(
-                vendor_name, 
-                vendor_names, 
+                vendor_name,
+                vendor_names,
                 entity_type='vendor'
             )
-            
+
             if not vendor_match.found:
-                return {'error': f"Vendor '{vendor_name}' not found. Please check the spelling or create the vendor first."}
-            
-            # Use the exact matched vendor name
+                return {'error': f"Vendor '{vendor_name}' not found"}
+
             matched_vendor_name = vendor_match.exact_name
-            logger.info(f"Matched vendor '{vendor_name}' to '{matched_vendor_name}' ({vendor_match.match_type} match)")
-            
-            # Get all items for fuzzy matching
+
+            # Fuzzy match item names
+            from qb.quickbooks_standard.entities.items.item_repository import ItemRepository
             item_repo = ItemRepository()
             all_items = item_repo.get_all_items()
-            # Filter to active items only
             item_names = [item['name'] for item in all_items if item.get('is_active', True)]
-            
-            # Get all jobs for fuzzy matching
-            from quickbooks_standard.entities.customers.customer_repository import CustomerRepository
-            customer_repo = CustomerRepository()
-            all_customers = customer_repo.get_all_customers(include_jobs=True)
-            # Create a list of customer:job combinations using full_name
-            job_names = []
-            for cust in all_customers:
-                # Use full_name which includes the complete path (e.g., "jeck:Jeff trailer")
-                full_name = cust.get('full_name', '')
-                if full_name:
-                    job_names.append(full_name)
-            
-            # Fuzzy match and validate each item
-            for i, item_data in enumerate(items):
-                # Match item name
-                item_name = item_data.get('item', '')
-                if item_name:
-                    item_match = self.fuzzy_matcher.find_best_match(
-                        item_name,
-                        item_names,
-                        entity_type='item'
-                    )
-                    
-                    if not item_match.found:
-                        return {'error': f"Item '{item_name}' in line {i+1} not found. Please check the spelling or create the item first."}
-                    
-                    # Update the item name to the exact match
-                    item_data['item'] = item_match.exact_name
-                    logger.info(f"Matched item '{item_name}' to '{item_match.exact_name}' ({item_match.match_type} match)")
-                
-                # Match customer_job if provided
-                job_name = item_data.get('customer_job', '')
-                if job_name:
-                    job_match = self.fuzzy_matcher.find_best_match(
-                        job_name,
-                        job_names,
-                        entity_type='job'
-                    )
-                    
-                    if not job_match.found:
-                        return {'error': f"Job '{job_name}' in line {i+1} not found. Please check the spelling or create the job first."}
-                    
-                    # Update the job name to the exact match
-                    item_data['customer_job'] = job_match.exact_name
-                    logger.info(f"Matched job '{job_name}' to '{job_match.exact_name}' ({job_match.match_type} match)")
-            
-            # Format date
-            if date:
-                parsed_date = self._parse_date(date)
-                date_str = parsed_date.strftime('%Y-%m-%d') if parsed_date else ''
-            else:
-                date_str = datetime.now().strftime('%Y-%m-%d')
-            
-            # Format expected date
-            expected_date_str = ""
-            if expected_date:
-                parsed_exp_date = self._parse_date(expected_date)
-                expected_date_str = parsed_exp_date.strftime('%Y-%m-%d') if parsed_exp_date else ''
-            
-            # Build line items XML
+
+            # Build the line items XML
             line_items_xml = ""
             for item_data in items:
-                quantity = item_data.get('quantity', 1)
-                rate = item_data.get('rate', '')
-                amount = item_data.get('amount', '')
-                description = item_data.get('description', '')
-                customer_job = item_data.get('customer_job', '')
-                
-                # Format numbers properly for QuickBooks
-                if rate:
-                    rate = f"{float(rate):.2f}"
-                if amount:
-                    amount = f"{float(amount):.2f}"
-                
-                line_items_xml += f"""
+                item_name = item_data.get('item', '')
+                quantity = item_data.get('quantity', 0)
+                rate = item_data.get('rate')
+                customer_job = item_data.get('customer_job')
+
+                # Fuzzy match the item name
+                item_match = self.fuzzy_matcher.find_best_match(
+                    item_name,
+                    item_names,
+                    entity_type='item'
+                )
+
+                if not item_match.found:
+                    return {'error': f"Item '{item_name}' not found"}
+
+                matched_item_name = item_match.exact_name
+
+                # Build the line item XML
+                line_xml = f"""
                 <PurchaseOrderLineAdd>
                     <ItemRef>
-                        <FullName>{item_data['item']}</FullName>
+                        <FullName>{matched_item_name}</FullName>
                     </ItemRef>
-                    {f'<Desc>{description}</Desc>' if description else ''}
-                    <Quantity>{quantity}</Quantity>
-                    {f'<Rate>{rate}</Rate>' if rate else ''}
-                    {f'<Amount>{amount}</Amount>' if amount else ''}
-                    {f'<CustomerRef><FullName>{customer_job}</FullName></CustomerRef>' if customer_job else ''}
+                    <Quantity>{quantity}</Quantity>"""
+
+                if rate is not None:
+                    line_xml += f"""
+                    <Rate>{rate}</Rate>"""
+
+                if customer_job:
+                    # Fuzzy match the customer:job
+                    from qb.quickbooks_standard.entities.customers.customer_repository import CustomerRepository
+                    customer_repo = CustomerRepository()
+                    all_customers = customer_repo.get_all_customers(include_jobs=True)
+                    customer_job_names = [c['full_name'] for c in all_customers]
+
+                    job_match = self.fuzzy_matcher.find_best_match(
+                        customer_job,
+                        customer_job_names,
+                        entity_type='customer:job'
+                    )
+
+                    if job_match.found:
+                        line_xml += f"""
+                    <CustomerRef>
+                        <FullName>{job_match.exact_name}</FullName>
+                    </CustomerRef>"""
+
+                line_xml += """
                 </PurchaseOrderLineAdd>"""
-            
-            # Build the purchase order add request (using matched vendor name)
+
+                line_items_xml += line_xml
+
+            # Build the purchase order XML
+            po_date = date or datetime.now().strftime('%Y-%m-%d')
+
             request_xml = f"""<?xml version="1.0" encoding="utf-8"?>
 <?qbxml version="13.0"?>
 <QBXML>
@@ -180,55 +146,81 @@ class PurchaseOrderRepository:
                 <VendorRef>
                     <FullName>{matched_vendor_name}</FullName>
                 </VendorRef>
-                <TxnDate>{date_str}</TxnDate>
-                {f'<RefNumber>{ref_number}</RefNumber>' if ref_number else ''}
-                {f'<ExpectedDate>{expected_date_str}</ExpectedDate>' if expected_date_str else ''}
-                {f'<Memo>{memo}</Memo>' if memo else ''}
-                {f'<VendorMsg>{vendor_msg}</VendorMsg>' if vendor_msg else ''}
-                {f'<ShipToEntityRef><FullName>{ship_to}</FullName></ShipToEntityRef>' if ship_to else ''}
+                <TxnDate>{po_date}</TxnDate>"""
+
+            if ref_number:
+                request_xml += f"""
+                <RefNumber>{ref_number}</RefNumber>"""
+
+            if expected_date:
+                request_xml += f"""
+                <ExpectedDate>{expected_date}</ExpectedDate>"""
+
+            if memo:
+                request_xml += f"""
+                <Memo>{memo}</Memo>"""
+
+            if vendor_msg:
+                request_xml += f"""
+                <VendorMsg>{vendor_msg}</VendorMsg>"""
+
+            request_xml += f"""
                 {line_items_xml}
             </PurchaseOrderAdd>
         </PurchaseOrderAddRq>
     </QBXMLMsgsRq>
 </QBXML>"""
-            
+
             # Process the request
             response_xml = self.connection.session_manager.ProcessRequest(
                 self.connection.ticket, request_xml
             )
-            
+
             # Parse the response
             root = ET.fromstring(response_xml)
-            
+
             # Check for errors
-            error = root.find('.//PurchaseOrderAddRs')
-            if error is not None and error.get('statusCode') != '0':
-                status_msg = error.get('statusMessage', 'Unknown error')
-                logger.error(f"QuickBooks error creating PO: {status_msg}")
-                return {'error': f'QuickBooks error: {status_msg}'}
-            
-            # Parse the created PO
-            po_ret = root.find('.//PurchaseOrderRet')
-            if po_ret is not None:
-                po_dict = self._parse_purchase_order(po_ret)
-                logger.info(f"Created PO #{po_dict.get('ref_number')} for {vendor_name}")
-                return po_dict
-            else:
-                return {'error': 'PO created but no data returned'}
-            
+            add_rs = root.find('.//PurchaseOrderAddRs')
+            if add_rs is not None:
+                status_code = add_rs.get('statusCode')
+                status_msg = add_rs.get('statusMessage', '')
+
+                if status_code == '0':
+                    # Parse the created PO
+                    po_ret = add_rs.find('PurchaseOrderRet')
+                    if po_ret is not None:
+                        txn_id = po_ret.find('TxnID').text
+                        ref_num = po_ret.find('RefNumber').text
+                        total = po_ret.find('TotalAmount').text
+
+                        logger.info(f"Successfully created PO #{ref_num} for {matched_vendor_name}")
+                        return {
+                            'success': True,
+                            'txn_id': txn_id,
+                            'ref_number': ref_num,
+                            'vendor': matched_vendor_name,
+                            'total': float(total),
+                            'message': f'Purchase Order #{ref_num} created successfully for {matched_vendor_name}'
+                        }
+                else:
+                    logger.error(f"Failed to create PO: {status_msg}")
+                    return {'error': f'Failed to create PO: {status_msg}'}
+
+            return {'error': 'No response from QuickBooks'}
+
         except Exception as e:
-            logger.error(f"Error creating PO: {str(e)}")
+            logger.error(f"Error creating purchase order: {str(e)}")
             return {'error': str(e)}
         finally:
             self.connection.disconnect()
-    
+
     def _parse_purchase_order(self, po_elem: ET.Element) -> Dict[str, Any]:
         """Parse a purchase order XML element into a dictionary"""
-        
+
         def get_text(elem, path, default=""):
             found = elem.find(path)
             return found.text if found is not None else default
-        
+
         # Extract basic fields
         result = {
             'txn_id': get_text(po_elem, 'TxnID'),
@@ -241,11 +233,12 @@ class PurchaseOrderRepository:
             'memo': get_text(po_elem, 'Memo'),
             'vendor_msg': get_text(po_elem, 'VendorMsg'),
         }
-        
+
         # Parse line items
         line_items = []
         for line in po_elem.findall('.//PurchaseOrderLineRet'):
             item = {
+                'txn_line_id': get_text(line, 'TxnLineID'),
                 'item': get_text(line, './/ItemRef/FullName'),
                 'description': get_text(line, 'Desc'),
                 'quantity': float(get_text(line, 'Quantity', '0')),
@@ -255,16 +248,16 @@ class PurchaseOrderRepository:
                 'received': float(get_text(line, 'ReceivedQuantity', '0')),
             }
             line_items.append(item)
-        
+
         result['line_items'] = line_items
-        
+
         return result
-    
+
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Parse date string in various formats"""
         if not date_str:
             return None
-        
+
         # Try different date formats
         formats = [
             '%m-%d-%Y',
@@ -273,16 +266,16 @@ class PurchaseOrderRepository:
             '%m-%d-%y',
             '%m/%d/%y'
         ]
-        
+
         for fmt in formats:
             try:
                 return datetime.strptime(date_str, fmt)
             except ValueError:
                 continue
-        
+
         logger.warning(f"Could not parse date: {date_str}")
         return None
-    
+
     def format_purchase_order(self, po: Dict[str, Any]) -> str:
         """Format purchase order for display"""
         lines = []
@@ -291,158 +284,173 @@ class PurchaseOrderRepository:
         lines.append("=" * 60)
         lines.append(f"Date: {po['txn_date']}")
         lines.append(f"Vendor: {po['vendor']}")
-        
+
         if po.get('expected_date'):
             lines.append(f"Expected Date: {po['expected_date']}")
-        
+
         if po.get('memo'):
             lines.append(f"Memo: {po['memo']}")
-        
+
         if po.get('vendor_msg'):
             lines.append(f"Vendor Message: {po['vendor_msg']}")
-        
+
         lines.append("")
         lines.append("LINE ITEMS:")
         lines.append("-" * 60)
-        
+
         for item in po.get('line_items', []):
             lines.append(f"{item['item']}")
-            if item.get('description'):
-                lines.append(f"  {item['description']}")
+            lines.append(f"  Quantity: {item['quantity']}")
+            if item.get('rate'):
+                lines.append(f"  Rate: ${item['rate']:.2f}")
+            lines.append(f"  Amount: ${item['amount']:.2f}")
             if item.get('customer_job'):
-                lines.append(f"  Job: {item['customer_job']}")
-            lines.append(f"  Qty: {item['quantity']} x ${item['rate']:.2f} = ${item['amount']:.2f}")
+                lines.append(f"  Customer/Job: {item['customer_job']}")
             if item.get('received', 0) > 0:
                 lines.append(f"  Received: {item['received']}")
-        
+                remaining = item['quantity'] - item['received']
+                lines.append(f"  Remaining: {remaining}")
+            lines.append("")
+
         lines.append("-" * 60)
-        lines.append(f"Total: ${po['total']:.2f}")
-        
+        lines.append(f"TOTAL: ${po['total']:.2f}")
+
         if po.get('is_fully_received'):
-            lines.append("Status: FULLY RECEIVED")
+            lines.append("STATUS: Fully Received")
         else:
-            lines.append("Status: OPEN")
-        
-        lines.append(f"\nTxnID: {po['txn_id']}")
-        
+            lines.append("STATUS: Open")
+
+        lines.append("=" * 60)
+
         return "\n".join(lines)
-    
+
     def get_purchase_orders(
         self,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         vendor_name: Optional[str] = None,
-        open_only: bool = True,
-        include_line_items: bool = True
+        open_only: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Get purchase orders with various filters
-        
+        Get purchase orders from QuickBooks
+
         Args:
-            date_from: Start date (MM-DD-YYYY or MM/DD/YYYY)
-            date_to: End date (MM-DD-YYYY or MM/DD/YYYY)
-            vendor_name: Filter by vendor name (optional)
-            open_only: If True, only return open POs (default: True)
-            include_line_items: Include line item details (default: True)
-        
+            date_from: Start date (format: MM-DD-YYYY or YYYY-MM-DD)
+            date_to: End date (format: MM-DD-YYYY or YYYY-MM-DD)
+            vendor_name: Filter by vendor name (fuzzy matched)
+            open_only: If True, only return open (not fully received) POs
+
         Returns:
-            List of purchase orders with details
+            List of purchase order dictionaries
         """
         if not self.connection.connect():
             logger.error("Failed to connect to QuickBooks")
             return []
-        
+
         try:
-            # Build the query request
-            # Start with basic query structure
-            query_parts = []
-            
-            # Add date filter if both dates provided
-            if date_from and date_to:
-                # Parse and format dates
-                parsed_from = self._parse_date(date_from)
-                parsed_to = self._parse_date(date_to)
-                
-                if parsed_from and parsed_to:
-                    from_date = parsed_from.strftime('%Y-%m-%d')
-                    to_date = parsed_to.strftime('%Y-%m-%d')
-                    query_parts.append(f"""
-            <TxnDateRangeFilter>
-                <FromTxnDate>{from_date}</FromTxnDate>
-                <ToTxnDate>{to_date}</ToTxnDate>
-            </TxnDateRangeFilter>""")
-                    logger.info(f"Querying POs from {from_date} to {to_date}")
-            
-            # Add vendor filter if provided
-            if vendor_name:
-                query_parts.append(f"""
-            <EntityFilter>
-                <FullName>{vendor_name}</FullName>
-            </EntityFilter>""")
-            
-            # Add line items flag
-            query_parts.append(f"""
-            <IncludeLineItems>{str(include_line_items).lower()}</IncludeLineItems>""")
-            
-            # Build complete request
-            request_xml = f"""<?xml version="1.0" encoding="utf-8"?>
+            # Build the query
+            request_xml = """<?xml version="1.0" encoding="utf-8"?>
 <?qbxml version="13.0"?>
 <QBXML>
     <QBXMLMsgsRq onError="stopOnError">
-        <PurchaseOrderQueryRq requestID="1">{''.join(query_parts)}
+        <PurchaseOrderQueryRq requestID="1">"""
+
+            # Add date range filter if provided
+            if date_from or date_to:
+                # Parse dates to ensure proper format
+                from_date = self._parse_date(date_from) if date_from else None
+                to_date = self._parse_date(date_to) if date_to else None
+
+                if from_date or to_date:
+                    request_xml += """
+            <ModifiedDateRangeFilter>"""
+                    if from_date:
+                        request_xml += f"""
+                <FromModifiedDate>{from_date.strftime('%Y-%m-%dT00:00:00')}</FromModifiedDate>"""
+                    if to_date:
+                        request_xml += f"""
+                <ToModifiedDate>{to_date.strftime('%Y-%m-%dT23:59:59')}</ToModifiedDate>"""
+                    request_xml += """
+            </ModifiedDateRangeFilter>"""
+
+            # Add vendor filter if provided
+            if vendor_name:
+                # Fuzzy match the vendor name first
+                from qb.quickbooks_standard.entities.vendors.vendor_repository import VendorRepository
+                vendor_repo = VendorRepository()
+                all_vendors = vendor_repo.get_all_vendors()
+                vendor_names = [v['name'] for v in all_vendors if v.get('is_active', True)]
+
+                vendor_match = self.fuzzy_matcher.find_best_match(
+                    vendor_name,
+                    vendor_names,
+                    entity_type='vendor'
+                )
+
+                if vendor_match.found:
+                    request_xml += f"""
+            <EntityFilter>
+                <FullNameList>
+                    <FullName>{vendor_match.exact_name}</FullName>
+                </FullNameList>
+            </EntityFilter>"""
+
+            request_xml += """
+            <IncludeLineItems>true</IncludeLineItems>
         </PurchaseOrderQueryRq>
     </QBXMLMsgsRq>
 </QBXML>"""
-            
+
             # Process the request
+            logger.info(f"Querying POs from {date_from} to {date_to}")
             response_xml = self.connection.session_manager.ProcessRequest(
                 self.connection.ticket, request_xml
             )
-            
+
             # Parse the response
             root = ET.fromstring(response_xml)
-            
+
             # Check for errors
             error = root.find('.//PurchaseOrderQueryRs')
             if error is not None and error.get('statusCode') != '0':
                 status_msg = error.get('statusMessage', 'Unknown error')
                 logger.error(f"QuickBooks error querying POs: {status_msg}")
                 return []
-            
+
             # Parse all purchase orders
             purchase_orders = []
             for po_elem in root.findall('.//PurchaseOrderRet'):
                 po = self._parse_purchase_order(po_elem)
-                
+
                 # Filter by open status if requested
                 if open_only and po.get('is_fully_received', False):
                     continue  # Skip fully received (closed) POs
-                
+
                 purchase_orders.append(po)
-            
+
             logger.info(f"Found {len(purchase_orders)} purchase orders")
             return purchase_orders
-            
+
         except Exception as e:
             logger.error(f"Error getting purchase orders: {str(e)}")
             return []
         finally:
             self.connection.disconnect()
-    
+
     def delete_purchase_order(self, txn_id: str) -> Dict[str, Any]:
         """
         Delete a purchase order from QuickBooks
-        
+
         Args:
             txn_id: Transaction ID of the purchase order to delete
-        
+
         Returns:
             Dictionary with success status or error
         """
         if not self.connection.connect():
             logger.error("Failed to connect to QuickBooks")
             return {'error': 'Failed to connect to QuickBooks'}
-        
+
         try:
             # Build the delete request
             request_xml = f"""<?xml version="1.0" encoding="utf-8"?>
@@ -455,36 +463,36 @@ class PurchaseOrderRepository:
         </TxnDelRq>
     </QBXMLMsgsRq>
 </QBXML>"""
-            
+
             # Process the request
             response_xml = self.connection.session_manager.ProcessRequest(
                 self.connection.ticket, request_xml
             )
-            
+
             # Parse the response
             root = ET.fromstring(response_xml)
-            
+
             # Check for errors
             del_rs = root.find('.//TxnDelRs')
             if del_rs is not None:
                 status_code = del_rs.get('statusCode')
                 status_msg = del_rs.get('statusMessage', '')
-                
+
                 if status_code == '0':
                     logger.info(f"Successfully deleted PO with TxnID: {txn_id}")
                     return {'success': True, 'message': f'Purchase Order deleted successfully (TxnID: {txn_id})'}
                 else:
                     logger.error(f"Failed to delete PO: {status_msg}")
                     return {'error': f'Failed to delete: {status_msg}'}
-            
+
             return {'error': 'No response from QuickBooks'}
-            
+
         except Exception as e:
             logger.error(f"Error deleting purchase order: {str(e)}")
             return {'error': str(e)}
         finally:
             self.connection.disconnect()
-    
+
     def receive_purchase_order(
         self,
         po_ref_number: Optional[str] = None,
@@ -492,195 +500,187 @@ class PurchaseOrderRepository:
         line_items: List[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Receive items from a purchase order (create Item Receipt)
-        
+        Receive items from a purchase order using QBFC (create Item Receipt)
+
         Args:
             po_ref_number: PO reference number (e.g., "269066")
             po_txn_id: PO transaction ID (alternative to ref_number)
             line_items: List of items to receive, each dict should have:
                 - item: Item name (will be fuzzy matched)
                 - quantity: Quantity to receive
-                - line_number: Optional specific line number from PO
-        
+
         Returns:
             Dictionary with receipt details or error
         """
-        if not self.connection.connect():
-            logger.error("Failed to connect to QuickBooks")
+        from datetime import datetime
+
+        # Use QBFC connection for proper job assignment handling
+        fast_conn = FastQBConnection()
+
+        if not fast_conn.connect():
+            logger.error("Failed to connect to QuickBooks via QBFC")
             return {'error': 'Failed to connect to QuickBooks'}
-        
+
         try:
-            # First, get the PO details to validate
-            if not po_txn_id and not po_ref_number:
-                return {'error': 'Either po_ref_number or po_txn_id must be provided'}
-            
-            # Get the PO details first
-            po_details = None
-            if po_txn_id:
-                # Query by TxnID
-                request_xml = f"""<?xml version="1.0" encoding="utf-8"?>
-<?qbxml version="13.0"?>
-<QBXML>
-    <QBXMLMsgsRq onError="stopOnError">
-        <PurchaseOrderQueryRq requestID="1">
-            <TxnID>{po_txn_id}</TxnID>
-            <IncludeLineItems>true</IncludeLineItems>
-        </PurchaseOrderQueryRq>
-    </QBXMLMsgsRq>
-</QBXML>"""
+            # First, query the PO to get details
+            request_set = fast_conn.create_request_set()
+            po_query = request_set.AppendPurchaseOrderQueryRq()
+
+            if po_ref_number:
+                po_query.ORTxnQuery.RefNumberList.Add(po_ref_number)
+            elif po_txn_id:
+                po_query.ORTxnQuery.TxnIDList.Add(po_txn_id)
             else:
-                # Query by RefNumber
-                request_xml = f"""<?xml version="1.0" encoding="utf-8"?>
-<?qbxml version="13.0"?>
-<QBXML>
-    <QBXMLMsgsRq onError="stopOnError">
-        <PurchaseOrderQueryRq requestID="1">
-            <RefNumber>{po_ref_number}</RefNumber>
-            <IncludeLineItems>true</IncludeLineItems>
-        </PurchaseOrderQueryRq>
-    </QBXMLMsgsRq>
-</QBXML>"""
-            
-            response_xml = self.connection.session_manager.ProcessRequest(
-                self.connection.ticket, request_xml
-            )
-            
-            root = ET.fromstring(response_xml)
-            po_elem = root.find('.//PurchaseOrderRet')
-            
-            if po_elem is None:
+                return {'error': 'Either po_ref_number or po_txn_id is required'}
+
+            po_query.IncludeLineItems.SetValue(True)
+
+            # Process the query
+            response_set = fast_conn.process_request_set(request_set)
+            response = response_set.ResponseList.GetAt(0)
+
+            if response.StatusCode != 0:
+                return {'error': f'Failed to query PO: {response.StatusMessage}'}
+
+            if response.Detail is None or response.Detail.Count == 0:
                 return {'error': f'Purchase Order not found: {po_ref_number or po_txn_id}'}
-            
-            po_details = self._parse_purchase_order(po_elem)
-            
-            # Build the Item Receipt
-            vendor_name = po_details['vendor']
-            po_txn_id_actual = po_details['txn_id']
-            
-            # Build line items for receipt
-            receipt_lines_xml = ""
-            
+
+            # Get PO details
+            po = response.Detail.GetAt(0)
+            po_txn_id_actual = po.TxnID.GetValue()
+            po_ref_num = po.RefNumber.GetValue()
+            vendor_name = po.VendorRef.FullName.GetValue()
+
+            # Get PO line details including CustomerRef
+            po_lines = []
+            line_count = po.ORPurchaseOrderLineRetList.Count if po.ORPurchaseOrderLineRetList else 0
+
+            for i in range(line_count):
+                line_ret = po.ORPurchaseOrderLineRetList.GetAt(i)
+                if hasattr(line_ret, 'PurchaseOrderLineRet'):
+                    po_line = line_ret.PurchaseOrderLineRet
+                    line_info = {
+                        'txn_line_id': po_line.TxnLineID.GetValue(),
+                        'item': po_line.ItemRef.FullName.GetValue() if po_line.ItemRef else None,
+                        'quantity': float(po_line.Quantity.GetValue()) if po_line.Quantity else 0,
+                        'received': float(po_line.ReceivedQuantity.GetValue()) if po_line.ReceivedQuantity else 0,
+                        'customer_job': po_line.CustomerRef.FullName.GetValue() if po_line.CustomerRef else None
+                    }
+                    if line_info['item']:
+                        po_lines.append(line_info)
+
+            # Create Item Receipt
+            receipt_request = fast_conn.create_request_set()
+            item_receipt_add = receipt_request.AppendItemReceiptAddRq()
+
+            # Set basic receipt info
+            item_receipt_add.VendorRef.FullName.SetValue(vendor_name)
+            item_receipt_add.TxnDate.SetValue(datetime.now())
+            item_receipt_add.RefNumber.SetValue(f"Receipt-{po_ref_num}-{datetime.now().strftime('%H%M')}")
+            item_receipt_add.Memo.SetValue(f"Receipt for PO #{po_ref_num}")
+
             if line_items:
-                # User specified which items to receive
+                # User specified which items to receive - partial receipt
                 for receive_item in line_items:
                     item_name = receive_item.get('item', '')
                     quantity = receive_item.get('quantity', 0)
-                    
+
                     # Fuzzy match the item name
-                    from quickbooks_standard.entities.items.item_repository import ItemRepository
+                    from qb.quickbooks_standard.entities.items.item_repository import ItemRepository
                     item_repo = ItemRepository()
                     all_items = item_repo.get_all_items()
                     item_names = [item['name'] for item in all_items if item.get('is_active', True)]
-                    
+
                     item_match = self.fuzzy_matcher.find_best_match(
                         item_name,
                         item_names,
                         entity_type='item'
                     )
-                    
+
                     if not item_match.found:
                         return {'error': f"Item '{item_name}' not found"}
-                    
+
                     matched_item_name = item_match.exact_name
-                    
+
                     # Find the corresponding PO line
-                    po_line = None
-                    for line in po_details.get('line_items', []):
-                        if line['item'] == matched_item_name:
-                            po_line = line
+                    matching_po_line = None
+                    for po_line in po_lines:
+                        if po_line['item'] == matched_item_name:
+                            matching_po_line = po_line
                             break
-                    
-                    if not po_line:
-                        return {'error': f"Item '{matched_item_name}' not found in PO #{po_details['ref_number']}"}
-                    
-                    # Add the receipt line
-                    # For linked POs, we need to specify OverrideItemAccountRef
-                    receipt_lines_xml += f"""
-                <ItemReceiptLineAdd>
-                    <ItemRef>
-                        <FullName>{matched_item_name}</FullName>
-                    </ItemRef>
-                    <Quantity>{quantity}</Quantity>
-                </ItemReceiptLineAdd>"""
+
+                    if not matching_po_line:
+                        return {'error': f"Item '{matched_item_name}' not found in PO #{po_ref_num}"}
+
+                    # Add line item to receipt
+                    line_add = item_receipt_add.ORItemLineAddList.Append()
+                    item_line = line_add.ItemLineAdd
+
+                    # IMPORTANT: When using LinkToTxn, do NOT set ItemRef
+                    # The item info is pulled from the PO line automatically
+                    item_line.Quantity.SetValue(float(quantity))
+
+                    # Link to PO line (this pulls item info automatically)
+                    item_line.LinkToTxn.TxnID.SetValue(po_txn_id_actual)
+                    item_line.LinkToTxn.TxnLineID.SetValue(matching_po_line['txn_line_id'])
+
+                    # CRITICAL: Set CustomerRef to preserve job assignment
+                    # This must come AFTER LinkToTxn
+                    if matching_po_line.get('customer_job'):
+                        item_line.CustomerRef.FullName.SetValue(matching_po_line['customer_job'])
+                        # BillableStatus: 0=NotBillable, 1=Billable, 2=HasBeenBilled
+                        item_line.BillableStatus.SetValue(1)  # Set as Billable
             else:
                 # Receive all items from PO in full
-                for line in po_details.get('line_items', []):
-                    remaining = line['quantity'] - line.get('received', 0)
-                    if remaining > 0:
-                        receipt_lines_xml += f"""
-                <ItemReceiptLineAdd>
-                    <ItemRef>
-                        <FullName>{line['item']}</FullName>
-                    </ItemRef>
-                    <Quantity>{remaining}</Quantity>
-                </ItemReceiptLineAdd>"""
-            
-            # Create the Item Receipt
-            from datetime import datetime
-            receipt_date = datetime.now().strftime('%Y-%m-%d')
-            
-            request_xml = f"""<?xml version="1.0" encoding="utf-8"?>
-<?qbxml version="13.0"?>
-<QBXML>
-    <QBXMLMsgsRq onError="stopOnError">
-        <ItemReceiptAddRq requestID="1">
-            <ItemReceiptAdd>
-                <VendorRef>
-                    <FullName>{vendor_name}</FullName>
-                </VendorRef>
-                <TxnDate>{receipt_date}</TxnDate>
-                <RefNumber>Receipt-{po_details['ref_number']}</RefNumber>
-                <Memo>Receipt for PO #{po_details['ref_number']}</Memo>
-                <LinkToTxnID>{po_txn_id_actual}</LinkToTxnID>
-                {receipt_lines_xml}
-            </ItemReceiptAdd>
-        </ItemReceiptAddRq>
-    </QBXMLMsgsRq>
-</QBXML>"""
-            
-            # Process the receipt
-            response_xml = self.connection.session_manager.ProcessRequest(
-                self.connection.ticket, request_xml
-            )
-            
-            # Parse response
-            root = ET.fromstring(response_xml)
-            
+                # Use header-level link for simplicity
+                item_receipt_add.LinkToTxnIDList.Add(po_txn_id_actual)
+
+            # Process the Item Receipt
+            receipt_response_set = fast_conn.process_request_set(receipt_request)
+            receipt_response = receipt_response_set.ResponseList.GetAt(0)
+
             # Check for errors
-            receipt_rs = root.find('.//ItemReceiptAddRs')
-            if receipt_rs is not None:
-                status_code = receipt_rs.get('statusCode')
-                status_msg = receipt_rs.get('statusMessage', '')
-                
-                if status_code == '0':
-                    receipt_ret = root.find('.//ItemReceiptRet')
-                    if receipt_ret:
-                        receipt_txn_id = receipt_ret.find('TxnID').text if receipt_ret.find('TxnID') is not None else ''
-                        receipt_ref = receipt_ret.find('RefNumber').text if receipt_ret.find('RefNumber') is not None else ''
-                        
-                        # Format success message
-                        message = f"Successfully received items from PO #{po_details['ref_number']}\n"
-                        message += f"Receipt Reference: {receipt_ref}\n"
-                        message += f"Receipt TxnID: {receipt_txn_id}\n\n"
-                        message += "Items Received:\n"
-                        
-                        if line_items:
-                            for item in line_items:
-                                message += f"  - {item['item']}: {item['quantity']} units\n"
-                        else:
-                            for line in po_details.get('line_items', []):
-                                remaining = line['quantity'] - line.get('received', 0)
-                                if remaining > 0:
-                                    message += f"  - {line['item']}: {remaining} units\n"
-                        
-                        return {'success': True, 'message': message, 'receipt_txn_id': receipt_txn_id}
-                else:
-                    return {'error': f'Failed to create receipt: {status_msg}'}
-            
-            return {'error': 'No response from QuickBooks'}
-            
+            if receipt_response.StatusCode != 0:
+                return {'error': f'Failed to create receipt: {receipt_response.StatusMessage}'}
+
+            receipt_ret = receipt_response.Detail
+            if receipt_ret:
+                receipt_txn_id = receipt_ret.TxnID.GetValue()
+                receipt_ref = receipt_ret.RefNumber.GetValue()
+
+                result = {
+                    'success': True,
+                    'txn_id': receipt_txn_id,
+                    'ref_number': receipt_ref,
+                    'po_ref_number': po_ref_num,
+                    'message': f'Successfully created receipt {receipt_ref} from PO #{po_ref_num}'
+                }
+
+                # Get received items details
+                received_items = []
+                line_count = receipt_ret.ORItemLineRetList.Count if receipt_ret.ORItemLineRetList else 0
+
+                for i in range(line_count):
+                    line_ret = receipt_ret.ORItemLineRetList.GetAt(i)
+                    if hasattr(line_ret, 'ItemLineRet'):
+                        item_line = line_ret.ItemLineRet
+                        if item_line.ItemRef and item_line.Quantity:
+                            item_detail = {
+                                'item': item_line.ItemRef.FullName.GetValue(),
+                                'quantity': float(item_line.Quantity.GetValue())
+                            }
+                            # Check if CustomerRef was preserved
+                            if hasattr(item_line, 'CustomerRef') and item_line.CustomerRef:
+                                item_detail['customer_job'] = item_line.CustomerRef.FullName.GetValue()
+                            received_items.append(item_detail)
+
+                result['received_items'] = received_items
+                return result
+
+            return {'error': 'No receipt details returned'}
+
         except Exception as e:
             logger.error(f"Error receiving purchase order: {str(e)}")
             return {'error': str(e)}
         finally:
-            self.connection.disconnect()
+            fast_conn.disconnect()

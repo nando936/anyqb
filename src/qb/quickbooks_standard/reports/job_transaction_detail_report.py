@@ -97,18 +97,23 @@ class JobTransactionDetailReport:
             
             # Add date filter if provided
             if date_from or date_to:
+                import pywintypes
+                from datetime import datetime
                 date_filter = invoice_query.ORInvoiceQuery.InvoiceFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter
                 if date_from:
-                    date_filter.FromTxnDate.SetValue(date_from)
+                    # Convert string to pywintypes.Time
+                    dt = datetime.strptime(date_from, '%m-%d-%Y')
+                    date_filter.FromTxnDate.SetValue(pywintypes.Time(dt))
                 if date_to:
-                    date_filter.ToTxnDate.SetValue(date_to)
+                    dt = datetime.strptime(date_to, '%m-%d-%Y')
+                    date_filter.ToTxnDate.SetValue(pywintypes.Time(dt))
             
             invoice_query.IncludeLineItems.SetValue(True)
             
             response_set = self.connection.process_request_set(request_set)
             response = response_set.ResponseList.GetAt(0)
             
-            if response.StatusCode == 0 and response.Detail:
+            if response.StatusCode == 0 and response.Detail and response.Detail.Count > 0:
                 for i in range(response.Detail.Count):
                     inv = response.Detail.GetAt(i)
                     invoices.append({
@@ -134,47 +139,53 @@ class JobTransactionDetailReport:
             
             # Can't filter bills by job directly, need to get all and filter
             if date_from or date_to:
+                import pywintypes
+                from datetime import datetime
                 if date_from:
-                    bill_query.ORBillQuery.BillFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.FromTxnDate.SetValue(date_from)
+                    dt = datetime.strptime(date_from, '%m-%d-%Y')
+                    bill_query.ORBillQuery.BillFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.FromTxnDate.SetValue(pywintypes.Time(dt))
                 if date_to:
-                    bill_query.ORBillQuery.BillFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.ToTxnDate.SetValue(date_to)
+                    dt = datetime.strptime(date_to, '%m-%d-%Y')
+                    bill_query.ORBillQuery.BillFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.ToTxnDate.SetValue(pywintypes.Time(dt))
             
             bill_query.IncludeLineItems.SetValue(True)
             
             response_set = self.connection.process_request_set(request_set)
             response = response_set.ResponseList.GetAt(0)
-            
-            if response.StatusCode == 0 and response.Detail:
-                for i in range(response.Detail.Count):
-                    bill = response.Detail.GetAt(i)
-                    
-                    # Check if any line items are for this job
-                    job_amount = 0.0
-                    has_job = False
-                    
-                    if hasattr(bill, 'ORItemLineRetList'):
-                        for j in range(bill.ORItemLineRetList.Count):
-                            line = bill.ORItemLineRetList.GetAt(j)
-                            if hasattr(line, 'ItemLineRet') and line.ItemLineRet:
-                                item_line = line.ItemLineRet
-                                if hasattr(item_line, 'CustomerRef') and item_line.CustomerRef:
-                                    if hasattr(item_line.CustomerRef, 'FullName'):
-                                        if item_line.CustomerRef.FullName.GetValue() == job_name:
-                                            has_job = True
-                                            if hasattr(item_line, 'Amount'):
-                                                job_amount += float(item_line.Amount.GetValue())
-                    
-                    if has_job:
-                        bills.append({
-                            'type': 'Bill',
-                            'txn_id': bill.TxnID.GetValue() if hasattr(bill, 'TxnID') else None,
-                            'ref_number': bill.RefNumber.GetValue() if hasattr(bill, 'RefNumber') else None,
-                            'date': bill.TxnDate.GetValue() if hasattr(bill, 'TxnDate') else None,
-                            'vendor': bill.VendorRef.FullName.GetValue() if hasattr(bill, 'VendorRef') else None,
-                            'job_amount': job_amount,
-                            'total_amount': float(bill.AmountDue.GetValue()) if hasattr(bill, 'AmountDue') else 0,
-                            'memo': bill.Memo.GetValue() if hasattr(bill, 'Memo') and bill.Memo else ''
-                        })
+
+            if response.StatusCode == 0:
+                bill_list = response.Detail
+                if bill_list is not None and hasattr(bill_list, 'Count'):
+                    for i in range(bill_list.Count):
+                        bill = bill_list.GetAt(i)
+
+                        # Check if any line items are for this job
+                        job_amount = 0.0
+                        has_job = False
+
+                        if hasattr(bill, 'ORItemLineRetList'):
+                            for j in range(bill.ORItemLineRetList.Count):
+                                line = bill.ORItemLineRetList.GetAt(j)
+                                if hasattr(line, 'ItemLineRet') and line.ItemLineRet:
+                                    item_line = line.ItemLineRet
+                                    if hasattr(item_line, 'CustomerRef') and item_line.CustomerRef:
+                                        if hasattr(item_line.CustomerRef, 'FullName'):
+                                            if item_line.CustomerRef.FullName.GetValue() == job_name:
+                                                has_job = True
+                                                if hasattr(item_line, 'Amount'):
+                                                    job_amount += float(item_line.Amount.GetValue())
+
+                        if has_job:
+                            bills.append({
+                                'type': 'Bill',
+                                'txn_id': bill.TxnID.GetValue() if hasattr(bill, 'TxnID') else None,
+                                'ref_number': bill.RefNumber.GetValue() if hasattr(bill, 'RefNumber') else None,
+                                'date': bill.TxnDate.GetValue() if hasattr(bill, 'TxnDate') else None,
+                                'vendor': bill.VendorRef.FullName.GetValue() if hasattr(bill, 'VendorRef') else None,
+                                'job_amount': job_amount,
+                                'total_amount': float(bill.AmountDue.GetValue()) if hasattr(bill, 'AmountDue') else 0,
+                                'memo': bill.Memo.GetValue() if hasattr(bill, 'Memo') and bill.Memo else ''
+                            })
                     
         except Exception as e:
             logger.error(f"[JobTransactionDetail] Error querying bills: {e}")
@@ -190,19 +201,26 @@ class JobTransactionDetailReport:
             
             # Can't filter checks by job directly, need to get all and filter
             if date_from or date_to:
+                import pywintypes
+                from datetime import datetime
+                # Check query structure is different - doesn't use ORCheckQuery wrapper
                 if date_from:
-                    check_query.ORCheckQuery.CheckFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.FromTxnDate.SetValue(date_from)
+                    dt = datetime.strptime(date_from, '%m-%d-%Y')
+                    check_query.ORTxnQuery.TxnFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.FromTxnDate.SetValue(pywintypes.Time(dt))
                 if date_to:
-                    check_query.ORCheckQuery.CheckFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.ToTxnDate.SetValue(date_to)
+                    dt = datetime.strptime(date_to, '%m-%d-%Y')
+                    check_query.ORTxnQuery.TxnFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter.ToTxnDate.SetValue(pywintypes.Time(dt))
             
             check_query.IncludeLineItems.SetValue(True)
             
             response_set = self.connection.process_request_set(request_set)
             response = response_set.ResponseList.GetAt(0)
-            
-            if response.StatusCode == 0 and response.Detail:
-                for i in range(response.Detail.Count):
-                    check = response.Detail.GetAt(i)
+
+            if response.StatusCode == 0:
+                check_list = response.Detail
+                if check_list is not None and hasattr(check_list, 'Count'):
+                    for i in range(check_list.Count):
+                        check = check_list.GetAt(i)
                     
                     # Check if any line items are for this job
                     job_amount = 0.0

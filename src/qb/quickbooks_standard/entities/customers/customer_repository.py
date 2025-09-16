@@ -205,34 +205,33 @@ class CustomerRepository:
     def find_customer_fuzzy(self, query: str) -> Optional[Dict]:
         """
         Find a customer using fuzzy matching
-        
+
         Args:
             query: Search term
-        
+
         Returns:
             Best matching customer dictionary if found
         """
         try:
-            # Get all customers (not jobs)
-            all_customers = self.get_all_customers(include_jobs=False)
+            # Get all customers AND jobs for fuzzy matching
+            all_customers = self.get_all_customers(include_jobs=True)
             if not all_customers:
                 logger.warning("No customers found in QuickBooks")
                 return None
-            
-            # Filter to only customers (not jobs)
-            customers = [c for c in all_customers if not c.get('is_job')]
-            customer_names = [c['name'] for c in customers if c.get('name')]
-            
+
+            # Include both customers and jobs in fuzzy matching
+            customer_names = [c['name'] for c in all_customers if c.get('name')]
+
             # Find best match
             match_result = self.fuzzy_matcher.match_customer(query, customer_names)
-            
+
             if match_result.found:
                 logger.info(f"Customer fuzzy match: {match_result}")
                 # Find the full customer data
-                for customer in customers:
+                for customer in all_customers:
                     if customer.get('name') == match_result.exact_name:
                         return customer
-            
+
             logger.warning(f"No fuzzy match found for customer: {query}")
             return None
             
@@ -240,6 +239,111 @@ class CustomerRepository:
             logger.error(f"Failed to fuzzy match customer {query}: {e}")
             return None
     
+    def get_customer_details(self, name: str) -> Optional[Dict]:
+        """
+        Get full customer details by name
+
+        Args:
+            name: Customer name to lookup
+
+        Returns:
+            Customer dictionary with ListID and EditSequence, or None
+        """
+        try:
+            if not fast_qb_connection.connect():
+                return None
+
+            request_set = fast_qb_connection.create_request_set()
+            query_rq = request_set.AppendCustomerQueryRq()
+            query_rq.ORCustomerListQuery.FullNameList.Add(name)
+
+            response_set = fast_qb_connection.process_request_set(request_set)
+            response = response_set.ResponseList.GetAt(0)
+
+            if response.StatusCode != 0 or not response.Detail or response.Detail.Count == 0:
+                return None
+
+            customer_ret = response.Detail.GetAt(0)
+            return {
+                'list_id': customer_ret.ListID.GetValue(),
+                'edit_sequence': customer_ret.EditSequence.GetValue(),
+                'name': customer_ret.Name.GetValue() if hasattr(customer_ret, 'Name') else customer_ret.FullName.GetValue(),
+                'full_name': customer_ret.FullName.GetValue() if hasattr(customer_ret, 'FullName') else None,
+                'is_job': hasattr(customer_ret, 'ParentRef') and customer_ret.ParentRef is not None,
+                'parent_name': customer_ret.ParentRef.FullName.GetValue() if hasattr(customer_ret, 'ParentRef') and customer_ret.ParentRef else None
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get customer details: {e}")
+            return None
+
+    def update_customer(self, customer_id: str, edit_sequence: str, updates: Dict) -> Dict:
+        """
+        Update an existing customer
+
+        Args:
+            customer_id: ListID of customer to update
+            edit_sequence: Edit sequence for the customer
+            updates: Dictionary of fields to update (parent_ref, name, etc)
+
+        Returns:
+            Success/failure dictionary
+        """
+        try:
+            if not fast_qb_connection.connect():
+                return {
+                    'success': False,
+                    'error': 'Failed to connect to QuickBooks'
+                }
+
+            request_set = fast_qb_connection.create_request_set()
+            mod_rq = request_set.AppendCustomerModRq()
+
+            # Required fields
+            mod_rq.ListID.SetValue(customer_id)
+            mod_rq.EditSequence.SetValue(edit_sequence)
+
+            # Set parent if converting to job
+            if 'parent_ref' in updates:
+                parent_name = updates['parent_ref']
+                # Find parent customer
+                parent = self.find_customer_fuzzy(parent_name)
+                if not parent:
+                    return {
+                        'success': False,
+                        'error': f"Parent customer '{parent_name}' not found"
+                    }
+                mod_rq.ParentRef.ListID.SetValue(parent['list_id'])
+                logger.info(f"Setting ParentRef to {parent['name']} (ID: {parent['list_id']})")
+
+            # Update other fields if provided
+            if 'name' in updates:
+                mod_rq.Name.SetValue(updates['name'])
+
+            if 'is_active' in updates:
+                mod_rq.IsActive.SetValue(updates['is_active'])
+
+            # Process the request
+            response_set = fast_qb_connection.process_request_set(request_set)
+            response = response_set.ResponseList.GetAt(0)
+
+            if response.StatusCode == 0:
+                logger.info(f"Successfully updated customer")
+                return {'success': True}
+            else:
+                error_msg = response.StatusMessage if hasattr(response, 'StatusMessage') else 'Unknown error'
+                return {
+                    'success': False,
+                    'error': f"QB Error {response.StatusCode}: {error_msg}"
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to update customer: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     def search_jobs(self, search_term: Optional[str] = None, active_only: bool = True) -> List[Dict]:
         """
         Search for jobs using fuzzy matching or list all jobs
