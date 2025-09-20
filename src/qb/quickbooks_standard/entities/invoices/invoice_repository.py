@@ -29,37 +29,38 @@ class InvoiceRepository:
         date_to: Optional[str] = None,
         ref_number: Optional[str] = None,
         paid_status: Optional[str] = None,  # "paid", "unpaid", "all"
-        max_returned: int = 100
+        max_returned: int = 500
     ) -> List[Dict[str, Any]]:
         """
         Search for invoices with various filters
-        
+
         Args:
             search_term: General search term for fuzzy matching
-            customer_name: Filter by customer/job name
+            customer_name: Filter by customer/job name (uses fuzzy matching)
             amount: Exact amount match
             amount_min/max: Amount range
             date_from/to: Date range (MM-DD-YYYY or MM/DD/YYYY)
             ref_number: Invoice reference number
             paid_status: Filter by paid status
             max_returned: Maximum results to return
-        
+
         Returns:
             List of invoice dictionaries
         """
         if not self.connection.connect():
             logger.error("Failed to connect to QuickBooks")
             return []
-        
+
         try:
-            # Build the invoice query
+            # For customer_name, we'll do fuzzy matching in post-processing
+            # So don't pass it to the query builder
             request_xml = self._build_invoice_query(
-                customer_name=customer_name,
+                customer_name=None,  # Don't filter at QB level for fuzzy matching
                 date_from=date_from,
                 date_to=date_to,
                 ref_number=ref_number,
                 paid_status=paid_status,
-                max_returned=max_returned
+                max_returned=max_returned * 3 if customer_name else max_returned  # Get more results for client-side filtering
             )
             
             # Process the request
@@ -88,7 +89,7 @@ class InvoiceRepository:
             results = []
             for invoice in invoices:
                 invoice_dict = self._parse_invoice(invoice)
-                
+
                 # Apply additional filters
                 if amount and float(invoice_dict.get('total', 0)) != amount:
                     continue
@@ -96,13 +97,21 @@ class InvoiceRepository:
                     continue
                 if amount_max and float(invoice_dict.get('total', 0)) > amount_max:
                     continue
-                
+
+                # Apply fuzzy customer name filter if provided
+                if customer_name:
+                    invoice_customer = invoice_dict.get('customer', '').lower()
+                    search_customer = customer_name.lower()
+                    # Check if search term is contained in customer name (fuzzy match)
+                    if search_customer not in invoice_customer:
+                        continue
+
                 # Apply fuzzy search if search term provided
                 if search_term:
                     searchable_text = f"{invoice_dict.get('customer', '')} {invoice_dict.get('ref_number', '')} {invoice_dict.get('memo', '')}".lower()
                     if search_term.lower() not in searchable_text:
                         continue
-                
+
                 results.append(invoice_dict)
             
             return results[:max_returned]

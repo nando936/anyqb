@@ -1,0 +1,182 @@
+STAGING AND APPROVAL PROCESS
+=============================
+
+OVERVIEW
+--------
+NO AUTOMATIC POSTING TO QUICKBOOKS
+All transactions must be:
+1. Staged with complete details
+2. Presented for review
+3. Explicitly approved before posting
+
+STAGING PROCESS
+---------------
+Step 1: Gather All Information
+- Extract data from documents
+- Get missing info from user
+- Validate all requirements met
+
+Step 2: Build Transaction
+- Prepare complete QB transaction
+- Include all required fields
+- Calculate totals and tax
+
+Step 3: Create Summary
+Display formatted summary showing:
+- Vendor name
+- Transaction date
+- Total amount
+- Job/Customer assignment
+- Items being purchased
+- Payment method
+- Check/reference number
+- Bank/credit card account
+- Source documents
+
+APPROVAL FORMAT
+---------------
+Present transaction like this:
+
+===== TRANSACTION READY FOR POSTING =====
+Vendor: Home Depot
+Date: 01-15-2025
+Amount: $125.43
+
+Job/Customer: Smith Residence Renovation
+Items:
+  - Lumber (2x4x8): $89.99
+  - Hardware: $25.44
+  - Tax: $10.00
+
+Payment: Check #1234
+Account: Operating Account
+Payment Date: 01-16-2025
+
+Source Documents:
+- 01-15-2025_homedepot_receipt_4567_125.43.jpg
+- 01-16-2025_homedepot_check_1234_125.43.jpg
+
+[Ready to post to QuickBooks? YES/NO]
+==========================================
+
+USER RESPONSES
+--------------
+If YES:
+- Execute QB command
+- IF COMMAND FAILS:
+  * STOP immediately
+  * Show the error message
+  * Ask user: "The [command] failed. How would you like to proceed?"
+  * Wait for user instruction
+  * Do NOT try alternative commands without asking
+- If successful:
+  * Move files to processed
+  * Confirm posting success
+
+If NO:
+- Ask what needs correction
+- Make adjustments
+- Re-stage for approval
+
+If CORRECTIONS needed:
+- Update specified fields
+- Show revised summary
+- Ask for approval again
+
+STAGING COMMANDS
+----------------
+User can say:
+- "Stage this transaction" - Prepare but don't post
+- "Show staged transaction" - Display current staging
+- "Post staged transaction" - Post after review
+- "Cancel staging" - Clear and start over
+- "Fix [field]" - Correct specific information
+
+BATCH PROCESSING
+----------------
+For multiple documents:
+1. Stage all transactions
+2. Show summary list:
+   Transaction 1: Home Depot - $125.43
+   Transaction 2: Lowes - $89.99
+   Transaction 3: Adrian (Work) - $650.00
+   Total: $865.42
+
+3. Options:
+   - "Post all" - Post entire batch
+   - "Post 1,3" - Post specific ones
+   - "Review #2" - See details of #2
+
+ERROR PREVENTION
+----------------
+Before staging, verify:
+- Vendor exists in QB
+- Items exist in QB
+- Job/Customer exists
+- No duplicate transactions
+- Amounts balance
+
+Flag for extra review if:
+- Amount over $1000
+- New vendor
+- Unusual payment method
+- Missing documentation
+
+AUDIT TRAIL
+-----------
+For each staged transaction, save:
+pending/staged_transactions.json
+{
+  "staged_date": "2025-01-15 10:30",
+  "vendor": "Home Depot",
+  "amount": 125.43,
+  "ready_to_post": true,
+  "user_approved": false,
+  "documents": [...],
+  "qb_command": "..."
+}
+
+SAFETY RULES
+------------
+NEVER:
+- Post without showing summary
+- Post without explicit approval
+- Skip approval for any amount
+- Auto-approve based on patterns
+- Post if any required field missing
+
+ALWAYS:
+- Show complete transaction details
+- Wait for user confirmation
+- Allow user to make changes
+- Keep staging until approved
+- Log all approval decisions
+
+ROLLBACK PROCESS
+----------------
+If posting fails:
+- Show error message
+- Keep documents in pending
+- Ask user how to proceed
+- Don't move to processed
+
+If user wants to undo:
+- Provide QB reversal command
+- Note in transaction log
+- Keep documents for audit
+
+INCREMENTAL BUILDING
+--------------------
+As we process more documents:
+- Learn common patterns
+- Suggest defaults
+- Still require approval
+- Build vendor preferences
+- Note special handling
+
+Example learnings to add:
+- "Home Depot always uses Lumber item"
+- "Checks to Adrian always $650"
+- "Lowes receipts need Pro discount"
+
+These become SUGGESTIONS, not automatic

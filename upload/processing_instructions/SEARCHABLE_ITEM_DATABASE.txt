@@ -1,0 +1,222 @@
+SEARCHABLE ITEM DATABASE SYSTEM
+================================
+
+PURPOSE
+-------
+Create a searchable history of EVERY item purchased, with prices, dates, and vendors.
+Answer questions like:
+- "What did I pay for 2x4s last time?"
+- "Show me all lumber prices from Home Depot"
+- "When did deck screws go up in price?"
+- "Which vendor has cheapest concrete?"
+
+DATABASE STRUCTURE
+------------------
+Master Item Database: item_price_history.json
+
+{
+  "items": {
+    "2X4X8_STUD": {
+      "common_names": ["2x4x8", "2x4", "stud", "lumber 2x4"],
+      "category": "Lumber",
+      "price_history": [
+        {
+          "date": "2025-01-15",
+          "vendor": "Home Depot",
+          "price": 4.98,
+          "quantity": 10,
+          "receipt": "01-15-2025_homedepot_receipt_4567_125.43.jpg",
+          "sku": "1001234567"
+        },
+        {
+          "date": "2024-12-20",
+          "vendor": "Lowes",
+          "price": 5.12,
+          "quantity": 5,
+          "receipt": "12-20-2024_lowes_receipt_8901_89.99.jpg",
+          "sku": "123456"
+        }
+      ],
+      "last_price": 4.98,
+      "last_vendor": "Home Depot",
+      "last_purchase": "2025-01-15",
+      "average_price": 5.05,
+      "lowest_price": {
+        "price": 4.98,
+        "vendor": "Home Depot",
+        "date": "2025-01-15"
+      }
+    }
+  }
+}
+
+AUTOMATIC UPDATES
+-----------------
+When processing receipts:
+1. Extract all line items
+2. Match to existing items or create new
+3. Add price point to history
+4. Update statistics (last, average, lowest)
+5. Save both in QB and database
+
+ITEM MATCHING
+-------------
+Smart matching by:
+- SKU (if same vendor)
+- Description keywords
+- Common variations:
+  * "2X4X8" = "2 X 4 X 8" = "2x4"
+  * "DECK SCREWS 3" = "3 INCH DECK SCREWS"
+- Ask user to confirm matches
+
+QUICKBOOKS INTEGRATION
+-----------------------
+Recommended Approach: BOTH QB and Database
+
+1. In QuickBooks:
+   - Post with full line items
+   - Each item with description
+   - Enables QB reporting
+
+2. In Database:
+   - Complete searchable history
+   - Price tracking
+   - Vendor comparison
+
+Example QB Posting:
+```
+Item: Lumber - 2X4X8 STUD (10) @ $4.98
+Memo: HD SKU:1001234567
+Amount: $49.80
+```
+
+SEARCH CAPABILITIES
+-------------------
+Claude can answer:
+- "What did 2x4s cost last time?"
+  → $4.98 at Home Depot on 01-15-2025
+
+- "Show price history for deck screws"
+  → Dec: $7.99, Jan: $8.97 (+12%)
+
+- "Which vendor has cheapest lumber?"
+  → Home Depot: $4.98 vs Lowes: $5.12
+
+- "What did I buy at Home Depot in January?"
+  → Full list with items and prices
+
+- "How much have I spent on lumber this year?"
+  → Total across all vendors
+
+SEARCH COMMANDS
+---------------
+Natural language queries:
+- "Find [item]"
+- "Price history [item]"
+- "Compare [item] prices"
+- "Last purchase of [item]"
+- "Total spent on [category]"
+- "All purchases from [vendor]"
+- "Items over $[amount]"
+
+CATEGORIES
+----------
+Standard categories for grouping:
+- Lumber
+- Hardware
+- Electrical
+- Plumbing
+- Paint
+- Tools
+- Concrete/Masonry
+- Roofing
+- Flooring
+- Garden/Landscape
+
+REPORTS
+-------
+Generate from database:
+1. Price Change Report
+   - Items with price increases
+   - Percentage changes
+   - Alert on big jumps
+
+2. Vendor Comparison
+   - Same items across vendors
+   - Best prices by category
+   - Preferred vendor analysis
+
+3. Spending Analysis
+   - By category
+   - By vendor
+   - By project/job
+   - By time period
+
+4. Frequently Purchased
+   - Top 10 items
+   - Reorder suggestions
+   - Bulk buy opportunities
+
+IMPLEMENTATION
+--------------
+Phase 1: Start capturing
+- Extract all line items
+- Save metadata files
+- Build initial database
+
+Phase 2: Historical import
+- Process old receipts
+- Import to database
+- Build price history
+
+Phase 3: Advanced features
+- Price alerts
+- Reorder reminders
+- Budget tracking
+- Predictive ordering
+
+BENEFITS
+--------
+1. Price Transparency
+   - Know what you paid
+   - Track inflation
+   - Negotiate better
+
+2. Budget Control
+   - Compare before buying
+   - Find best deals
+   - Avoid overpaying
+
+3. Project Planning
+   - Accurate estimates
+   - Historical costs
+   - Material planning
+
+4. Tax/Audit
+   - Complete records
+   - Item-level detail
+   - Easy documentation
+
+USER PREFERENCE
+---------------
+Ask user once:
+"Do you want to track individual item prices for searching?"
+- YES: Full extraction + database (RECOMMENDED)
+- NO: Simple posting only
+
+If YES:
+"How should items be posted to QuickBooks?"
+- Detailed: Each line item separate
+- Grouped: By category
+- Simple: One line with memo
+
+STORAGE LOCATION
+----------------
+Database files in:
+upload/item_database/
+├── item_price_history.json
+├── vendor_items/
+│   ├── homedepot_items.json
+│   └── lowes_items.json
+└── reports/
+    └── monthly_summaries/

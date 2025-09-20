@@ -1,0 +1,133 @@
+HOME DEPOT PROCESSING INSTRUCTIONS
+===================================
+
+VENDOR INFORMATION
+------------------
+QuickBooks Name: The Home Depot
+Default Account: Construction Materials
+Default Class: Jobs
+Payment Terms: Net 30
+
+IDENTIFICATION PATTERNS
+-----------------------
+Logo/Text Markers:
+- "THE HOME DEPOT"
+- "Home Depot"
+- "homedepot.com"
+
+Store Numbers:
+- Format: "STORE #XXXX" or "STR #XXXX"
+- Common: #0121, #0578, #1234
+
+Phone Patterns:
+- 1-800-HOME-DEPOT
+- 1-800-466-3337
+
+DOCUMENT FORMATS
+----------------
+Receipt Format:
+- Header: Store info, date, time
+- Items: SKU, description, price
+- Footer: Subtotal, Tax, Total
+- Barcode at bottom
+
+Invoice Format:
+- Pro/Commercial invoices
+- PO number field
+- Terms section
+
+EXTRACTION RULES
+----------------
+Date:
+- Location: Top of receipt after store info
+- Format: MM/DD/YY HH:MM
+- Alternative: "SALE DATE: MM/DD/YYYY"
+
+Amount:
+- Look for: "TOTAL", "GRAND TOTAL"
+- Position: After tax line
+- Include tax in total
+
+Tax:
+- Label: "TAX", "SALES TAX"
+- May have multiple tax lines
+
+Reference Number:
+- Receipt: Transaction number (12 digits)
+- Format: XXXX-XXXX-XXXX
+- Location: Near barcode
+
+Store Location:
+- After: "STORE #" or "STR #"
+- Include in memo field
+
+ITEM CATEGORIZATION
+--------------------
+Common Categories:
+- Lumber -> Construction Materials
+- Paint -> Paint & Supplies
+- Tools -> Tools & Equipment
+- Hardware -> General Supplies
+- Electrical -> Electrical Supplies
+- Plumbing -> Plumbing Supplies
+
+QUICKBOOKS POSTING
+-------------------
+Transaction Rules:
+- Under $100: Post as Check
+- $100-$500: Create Bill
+- Over $500: Create Bill with approval flag
+
+Account Mapping:
+- Default: Construction Materials
+- Paint items: Paint & Supplies
+- Tool rental: Equipment Rental
+- Services: Subcontractors
+
+Memo Format:
+"HD Store #[store] Receipt #[receipt] [date]"
+
+CLASS ASSIGNMENT
+----------------
+- Look for job/project notes
+- Default: Current Active Job
+- If multiple items: Split by category
+
+SPECIAL HANDLING
+----------------
+Pro Account:
+- Check for Pro rewards number
+- May have volume discounts
+- Extended payment terms
+
+Returns:
+- Negative amounts
+- Create Credit Memo
+- Reference original transaction
+
+Rentals:
+- Tool/equipment rental
+- Post to Equipment Rental account
+- Note return date
+
+COMMON ISSUES
+-------------
+- Faded thermal receipts: Increase contrast
+- Multiple receipts taped together: Process separately
+- Pro Xtra discounts: Include in item price
+- Special orders: May span multiple receipts
+
+VALIDATION
+----------
+- Verify store number is valid
+- Check receipt total matches sum of items + tax
+- Confirm date is reasonable (not future)
+- Flag amounts over $1000 for review
+
+FILE NAMING
+-----------
+Use standard format: MM-DD-YYYY_homedepot_[type]_[number]_[amount].[ext]
+Examples:
+- Receipt: 01-15-2025_homedepot_receipt_4567_234.56.jpg
+- Invoice: 01-15-2025_homedepot_invoice_pro123_1234.00.pdf
+- Payment: 01-15-2025_homedepot_check_8901_234.56.jpg

@@ -1,0 +1,158 @@
+DOCUMENT PAIRING RULES
+======================
+
+OVERVIEW
+--------
+Most transactions require TWO documents to process:
+1. Vendor invoice/receipt (shows what was purchased)
+2. Payment receipt (shows how it was paid)
+
+Claude must pair these documents before posting to QuickBooks.
+
+DOCUMENT TYPES TO PAIR
+----------------------
+Invoice Documents:
+- Vendor invoices
+- Store receipts
+- Bills
+- Statements
+- Purchase orders (when filled)
+
+Payment Documents:
+- Check images (front and back)
+- Bank statements with highlighted payment
+- Credit card receipts
+- Zelle/Venmo/PayPal confirmations
+- Wire transfer receipts
+- ATM withdrawal slips
+- Cash receipts
+- Money order stubs
+
+MATCHING ALGORITHM
+------------------
+Step 1: Identify Document Type
+- Is it an invoice/bill? -> Need payment doc
+- Is it a payment doc? -> Need invoice/bill
+- Could be both? -> Check for "PAID" stamp
+
+Step 2: Find Matching Pair
+Match by (in priority order):
+1. Exact amount match
+2. Vendor name match
+3. Date proximity (payment on/after invoice)
+4. Reference number on both docs
+5. Check memo matching invoice #
+
+Step 3: Confidence Scoring
+HIGH confidence if:
+- Amount matches exactly
+- Vendor name matches
+- Payment date >= invoice date
+
+MEDIUM confidence if:
+- Amount close (within $0.50)
+- Partial vendor name match
+- Dates within 30 days
+
+LOW confidence - ASK USER if:
+- Only one criteria matches
+- Multiple possible matches
+- Amounts don't match
+
+PAIRING EXAMPLES
+----------------
+Example 1: Home Depot
+- Doc 1: HD receipt for $125.43 dated 1/15
+- Doc 2: Check #1234 for $125.43 dated 1/16
+- MATCH: Amount exact, date sequential
+
+Example 2: Multiple Invoices
+- Doc 1: Invoice #101 for $500
+- Doc 2: Invoice #102 for $500
+- Doc 3: Check for $1000
+- MATCH: Check pays both invoices
+
+Example 3: Partial Payment
+- Doc 1: Invoice for $1000
+- Doc 2: Check for $500
+- ACTION: Ask if partial payment
+
+SPECIAL CASES
+-------------
+Credit Card Statements:
+- May show multiple vendor payments
+- Extract individual transactions
+- Match each to its invoice
+
+Bank Statements:
+- Look for highlighted/circled items
+- Check description for vendor name
+- Match by amount and date
+
+Split Payments:
+- One invoice, multiple payments
+- Track each payment separately
+- Note remaining balance
+
+Prepaid/Deposits:
+- Payment before invoice
+- Flag for special handling
+- Apply when invoice arrives
+
+MISSING PAIRS
+-------------
+If invoice but no payment found:
+1. Check if marked "PAID" on invoice
+2. Ask: "How was this $[amount] [vendor] bill paid?"
+3. Options:
+   - Wait for payment doc upload
+   - Enter payment details manually
+   - Mark as unpaid bill
+
+If payment but no invoice found:
+1. Check if payment memo has details
+2. Ask: "What was this $[amount] payment for?"
+3. Create bill from payment info
+
+WORKFLOW
+--------
+1. Scan inbox for all documents
+2. Categorize as invoice or payment
+3. Build pairing matrix
+4. Match with confidence scores
+5. Process high confidence pairs
+6. Query user on uncertain pairs
+7. Process confirmed pairs
+8. Handle unmatched documents
+
+OUTPUT
+------
+For each matched pair, create:
+- Single QB transaction
+- Link both documents
+- Note pairing confidence
+- Save both files together
+
+ERROR HANDLING
+--------------
+- Duplicate payment docs -> Flag for review
+- Payment > Invoice -> Check for multiple invoices
+- Payment < Invoice -> Partial payment or error
+- No match found -> Hold in pending with alert
+
+FILING
+------
+Paired documents filed together:
+processed_transactions/[vendor]/
+├── 01-15-2025_homedepot_invoice_2453_125.43.pdf
+├── 01-15-2025_homedepot_check_1234_125.43.pdf
+└── 01-15-2025_homedepot_transaction_125.43.json
+
+File Naming Convention:
+MM-DD-YYYY_[vendor]_[type]_[number]_[amount].[ext]
+
+Examples:
+- Invoice: 01-15-2025_lowes_invoice_8976_89.99.jpg
+- Payment: 01-15-2025_lowes_check_5678_89.99.jpg
+- Receipt: 01-15-2025_walmart_receipt_3421_45.67.jpg
+- Zelle: 01-15-2025_adrian_zelle_conf123_650.00.jpg

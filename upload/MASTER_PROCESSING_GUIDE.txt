@@ -1,0 +1,105 @@
+MASTER DOCUMENT PROCESSING GUIDE
+=================================
+
+OVERVIEW
+--------
+This system processes documents uploaded from phone/scanner and posts them to QuickBooks.
+
+FOLDER STRUCTURE
+----------------
+inbox/                  - New uploads land here
+pending/                - Documents being actively processed
+processed_transactions/ - Successfully processed documents (organized by vendor)
+failed/                 - Documents that couldn't be processed automatically
+archive/                - Old processed documents (optional)
+processing_instructions/ - Rules and instructions for processing
+
+PROCESSING WORKFLOW
+-------------------
+1. Upload documents from phone -> land in inbox/
+   - Usually TWO documents per transaction:
+     * Invoice/Receipt from vendor
+     * Payment receipt (check, bank statement, etc.)
+2. Tell Claude: "Process new documents" or "Process inbox"
+3. Claude will:
+   - Read ALL files from inbox/
+   - Match invoice/receipts with payment documents
+   - Pair documents by vendor/amount/date
+   - EXTRACT ALL DATA IN ONE PASS:
+     * Date, amount, vendor
+     * ALL LINE ITEMS with details
+     * Payment method and account
+   - Create line item description for QB
+   - Save line items to metadata file
+   - ASK FOR THE FOLLOWING if not found:
+     * Job/Customer assignment
+     * QuickBooks item(s) to use (if not clear from line items)
+     * Missing payment info
+   - Move paired documents to pending/ during processing
+   - STAGE transaction with:
+     * Complete line item details in description
+     * Metadata file with searchable items
+   - DISPLAY complete transaction summary
+   - ASK FOR APPROVAL: "Ready to post to QuickBooks?"
+   - ONLY POST after user confirms
+   - Move to processed_transactions/[vendor]/ after posting
+   - Save both transaction JSON and items metadata
+
+IMPORTANT: Claude will ALWAYS ask for:
+- Job/customer assignment
+- QuickBooks items (NO EXPENSES allowed)
+- Payment details and proof
+
+INSTRUCTION FILES
+-----------------
+processing_instructions/
+├── GENERAL_RULES.txt         - Default rules for all documents
+├── vendors/                  - Vendor-specific instructions
+│   └── [VENDOR_NAME].txt    - Rules for specific vendor
+└── types/                    - Document type instructions
+    └── [TYPE].txt           - Rules for document type
+
+VENDOR IDENTIFICATION
+---------------------
+Documents are matched to vendors by:
+1. Logo text recognition
+2. Store numbers
+3. Phone numbers
+4. Address patterns
+5. Receipt format patterns
+
+QUICKBOOKS POSTING
+-------------------
+Based on document type and vendor rules:
+- Bills: Created for amounts over threshold
+- Checks: Direct payment for smaller amounts
+- Deposits: Customer payments
+- Invoices: Customer billing
+
+FAILED PROCESSING
+-----------------
+Documents move to failed/ when:
+- Vendor cannot be identified -> failed/unrecognized/
+- OCR cannot read document -> failed/ocr_failed/
+- Missing required data -> failed/validation_errors/
+
+ADDING NEW VENDORS
+------------------
+1. Create processing_instructions/vendors/[VENDOR_NAME].txt
+2. Define identification patterns
+3. Specify QB account mappings
+4. Set posting rules
+5. Test with sample document
+
+MANUAL OVERRIDE
+---------------
+To manually specify vendor/type:
+"Process inbox/receipt.jpg as Home Depot receipt"
+
+COMMANDS
+--------
+"Process inbox" - Process all new documents
+"Process [filename]" - Process specific file
+"Show failed" - List failed documents
+"Retry failed" - Attempt to reprocess failed items
+"Archive processed" - Move old processed to archive

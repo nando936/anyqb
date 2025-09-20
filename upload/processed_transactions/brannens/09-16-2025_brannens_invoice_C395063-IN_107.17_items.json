@@ -1,0 +1,33 @@
+{
+  "invoice_number": "C395063-IN",
+  "vendor": "Brannen's Inc",
+  "date": "09/16/2025",
+  "total": 107.17,
+  "subtotal": 99.00,
+  "tax": 8.17,
+  "payment": {
+    "method": "Debit Card",
+    "last_4": "5635",
+    "auth_code": "111951",
+    "account": "1887 b"
+  },
+  "line_items": [
+    {
+      "item_number": "NT65-F",
+      "description": "16GA 2-1/2\" NAILER - MEX FLAG",
+      "quantity": 1,
+      "unit": "EA",
+      "price": 99.00,
+      "extended": 99.00,
+      "category": "Tools",
+      "quickbooks_item": "tool"
+    }
+  ],
+  "quickbooks_transaction": {
+    "type": "CHECK",
+    "id": "51C58-1758044158",
+    "check_number": "5635",
+    "memo": "Invoice C395063-IN - 16GA 2-1/2 NAILER"
+  },
+  "notes": "Overhead expense - no job assignment required"
+}

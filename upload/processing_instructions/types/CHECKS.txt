@@ -1,0 +1,237 @@
+CHECK PROCESSING INSTRUCTIONS
+==============================
+
+DOCUMENT IDENTIFICATION
+-----------------------
+Identifying Features:
+- Check number (top right)
+- MICR line at bottom
+- Pay to the order of
+- Written and numerical amounts
+- Signature line
+- Bank information
+
+Types:
+- Business checks (received)
+- Business checks (written)
+- Cashier's checks
+- Personal checks
+- Voided checks
+
+REQUIRED EXTRACTIONS
+---------------------
+Mandatory Fields:
+1. Check number
+2. Date
+3. Payee (Pay to)
+4. Amount (numeric)
+5. Amount (written)
+6. Bank name
+7. Account holder (check from)
+
+Optional Fields:
+- Memo line
+- Second signature
+- Address information
+- Phone number
+- Routing/Account numbers (masked)
+
+DATA LOCATIONS
+--------------
+Check Number:
+- Top right corner
+- 3-6 digits typically
+
+Date:
+- Top right
+- Near check number
+- Format varies
+
+Payee:
+- After "Pay to the Order of"
+- First line of check body
+
+Amount:
+- Numeric: Box on right
+- Written: Line below payee
+- Must match
+
+Memo:
+- Bottom left
+- "For" or "Memo" line
+- Reference/description
+
+QUICKBOOKS ENTRY
+----------------
+For Checks Received (Deposits):
+- Create as Customer Payment
+- Or direct Deposit
+- Match to invoice if applicable
+
+For Checks Written:
+- Already in QB typically
+- Verify cleared amount
+- Match check number
+
+Check Types in QB:
+- Regular check
+- Bill payment check
+- Payroll check (special handling)
+- Refund check
+
+VERIFICATION STEPS
+------------------
+Amount Matching:
+- Written amount = Numeric amount
+- If different, written prevails
+- Flag discrepancies
+
+Date Validation:
+- Not future dated
+- Within reasonable range
+- Post-dated checks special handling
+
+Signature Verification:
+- Signature present
+- Authorized signer (if known)
+- Two signatures if required
+
+SPECIAL CHECK TYPES
+-------------------
+Voided Checks:
+- "VOID" written across
+- Don't process payment
+- File for reference only
+
+Cashier's Checks:
+- Bank-issued
+- Guaranteed funds
+- Special clearing
+
+Money Orders:
+- Similar to cashier's check
+- Serial number tracking
+
+Electronic Checks:
+- "Electronic Check" notation
+- ACH transaction
+- Different clearing time
+
+DEPOSIT PROCESSING
+------------------
+Single Check Deposit:
+- Direct to bank account
+- Note check number
+
+Multiple Checks:
+- Batch deposit
+- List all check numbers
+- Total must match
+
+Partial Payments:
+- Apply to specific invoice
+- Note remaining balance
+- Track in customer account
+
+BANK RECONCILIATION
+--------------------
+Tracking Info:
+- Check number
+- Clear date
+- Bank statement line
+- NSF handling
+
+Outstanding Checks:
+- Track uncleared
+- Age analysis
+- Follow up if old
+
+MEMO LINE PARSING
+-----------------
+Common References:
+- Invoice numbers
+- PO numbers
+- Account numbers
+- Job/Project references
+
+Auto-Categorization:
+- "Rent" -> Rent Expense
+- "Insurance" -> Insurance
+- "Utilities" -> Utilities
+
+ENDORSEMENT
+-----------
+For Deposit Checks:
+- "For Deposit Only"
+- Account number
+- Company stamp
+
+Restrictive Endorsement:
+- Mobile deposit notation
+- Date of deposit
+
+FRAUD PREVENTION
+----------------
+Red Flags:
+- Altered amounts
+- Mismatched written/numeric
+- Suspicious signatures
+- Post-dated far future
+- Unusual bank
+
+Verification:
+- Large amounts call to verify
+- New payors verify
+- Check bank routing valid
+
+RETURNED CHECKS
+---------------
+NSF (Non-Sufficient Funds):
+- Reverse original entry
+- Add NSF fee
+- Contact customer
+
+Stop Payment:
+- Note reason
+- Don't redeposit
+- Follow up action
+
+Account Closed:
+- Customer contact
+- Collection process
+
+IMAGE CAPTURE
+-------------
+Requirements:
+- All four corners visible
+- Clear MICR line
+- Readable amounts
+- Both front and back
+- Endorsement visible
+
+Mobile Deposit:
+- Note "Mobile Deposit"
+- Date deposited
+- Keep physical check 30 days
+
+FILING
+------
+Physical Checks:
+- Stamp with deposit date
+- File by month
+- Keep per retention policy
+
+Digital Images:
+- Save as PDF
+- Name: CHECK_[Number]_[Date]_[Payee]
+- Link to QB transaction
+- Backup to cloud
+
+COMMON ISSUES
+-------------
+- Post-dated checks
+- Two-party checks
+- Foreign checks
+- Damaged/torn checks
+- Missing signature
+- Stale dated (>6 months)

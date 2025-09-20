@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<QBXML>
+<QBXMLMsgsRs>
+<PurchaseOrderQueryRs requestID="1" statusCode="0" statusSeverity="Info" statusMessage="Status OK">
+<PurchaseOrderRet>
+<TxnID>51B38-1757505854</TxnID>
+<TimeCreated>2025-09-10T07:04:14-06:00</TimeCreated>
+<TimeModified>2025-09-10T07:04:14-06:00</TimeModified>
+<EditSequence>1757505854</EditSequence>
+<TxnNumber>23257</TxnNumber>
+<VendorRef>
+<ListID>80001615-1757505695</ListID>
+<FullName>TEST_VENDOR_RECEIPT</FullName>
+</VendorRef>
+<TemplateRef>
+<ListID>8000002D-1434377188</ListID>
+<FullName>Purchase Order not total</FullName>
+</TemplateRef>
+<TxnDate>2025-09-10</TxnDate>
+<RefNumber>269070</RefNumber>
+<ShipAddress>
+<Addr1>suarez carpentry</Addr1>
+<Addr2>PO Box 3514</Addr2>
+<City>Conroe</City>
+<State>TX</State>
+<PostalCode>77305</PostalCode>
+<Note>936-672-4234 fernando</Note>
+</ShipAddress>
+<ShipAddressBlock>
+<Addr1>suarez carpentry</Addr1>
+<Addr2>PO Box 3514</Addr2>
+<Addr3>Conroe Texas 77305</Addr3>
+<Addr4>936-672-4234 fernando</Addr4>
+</ShipAddressBlock>
+<DueDate>2025-09-10</DueDate>
+<ExpectedDate>2025-09-10</ExpectedDate>
+<TotalAmount>400.00</TotalAmount>
+<IsManuallyClosed>false</IsManuallyClosed>
+<IsFullyReceived>false</IsFullyReceived>
+<Memo>Test PO 2 for partial</Memo>
+<IsToBePrinted>true</IsToBePrinted>
+<IsToBeEmailed>false</IsToBeEmailed>
+<LinkedTxn>
+<TxnID>51B3E-1757506538</TxnID>
+<TxnType>ItemReceipt</TxnType>
+<TxnDate>2025-09-10</TxnDate>
+<RefNumber>QBFC-Partial-Test</RefNumber>
+<LinkType>QUANTYPE</LinkType>
+<Amount>0.00</Amount>
+</LinkedTxn>
+<PurchaseOrderLineRet>
+<TxnLineID>51B3A-1757505854</TxnLineID>
+<ItemRef>
+<ListID>80000136-1705584079</ListID>
+<FullName>job materials</FullName>
+</ItemRef>
+<Desc>job materials</Desc>
+<Quantity>200</Quantity>
+<Rate>2.00</Rate>
+<Amount>400.00</Amount>
+<CustomerRef>
+<ListID>80001614-1757430566</ListID>
+<FullName>jeck:Jeff trailer</FullName>
+</CustomerRef>
+<ReceivedQuantity>50</ReceivedQuantity>
+<IsBilled>false</IsBilled>
+<IsManuallyClosed>false</IsManuallyClosed>
+</PurchaseOrderLineRet>
+</PurchaseOrderRet>
+</PurchaseOrderQueryRs>
+</QBXMLMsgsRs>
+</QBXML>

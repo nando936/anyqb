@@ -1,0 +1,161 @@
+PAYMENT METHODS TRACKING
+=========================
+
+PURPOSE
+-------
+Track and automatically match payment methods to correct bank/credit card accounts.
+Identify which card or account was used based on last 4 digits or check numbers.
+
+DEBIT CARDS
+-----------
+Current Active Cards (match by last 4 digits):
+
+6664 - [Bank Account: TBD]
+      [Bank Name: TBD]
+      [Cardholder: TBD]
+
+8631 - [Bank Account: TBD]
+      [Bank Name: TBD]
+      [Cardholder: TBD]
+
+5635 - [Bank Account: TBD]
+      [Bank Name: TBD]
+      [Cardholder: TBD]
+
+MATCHING RULES
+--------------
+When processing payment receipts:
+1. Extract last 4 digits from card number
+2. Match against known cards above
+3. Auto-assign to correct QB bank account
+4. If NO MATCH: ALWAYS ASK USER
+   - Never assume or use defaults
+   - Ask: "Card ending [XXXX] - which account should be used?"
+   - Add new card to list for future use
+
+Debit Card Receipt Indicators:
+- "DEBIT SALE"
+- "DEBIT CARD"
+- "PIN VERIFIED"
+- Card number with asterisks
+- Shows "CHECKING" or "SAVINGS"
+
+CREDIT CARDS
+------------
+[To be added as used]
+Format: Last 4 - Card Type - QB Account
+
+Example:
+1234 - Visa Business - Business Credit Card Account
+5678 - Mastercard - Personal Credit Card
+
+CHECKS
+------
+Check Number Ranges:
+[To be defined based on your accounts]
+
+Example:
+1000-1999: Operating Account
+2000-2999: Payroll Account
+5000-5999: Money Market
+
+Special Check Types:
+- "ATM" - ATM withdrawal (Jaciel payments)
+- "Zelle" - Zelle transfer (Adrian, Elmer, etc.)
+- "WIRE" - Wire transfer
+- "ACH" - ACH transfer
+
+CASH
+----
+When payment shows:
+- "CASH"
+- "CURRENCY"
+- ATM withdrawal matching amount
+
+Assign to: Petty Cash or Cash Drawer
+
+PAYMENT MATCHING LOGIC
+----------------------
+For Each Transaction:
+
+1. Check Payment Type:
+   - Debit card? -> Match last 4 digits
+   - Credit card? -> Match last 4 digits
+   - Check? -> Use check number range
+   - Cash? -> Petty cash account
+   - Electronic? -> Check memo for type
+
+2. Date Matching:
+   - Payment date should be on or after invoice date
+   - Within 30 days typically
+   - Flag if payment before invoice
+
+3. Amount Matching:
+   - Exact match preferred
+   - Within $0.50 for rounding
+   - Multiple invoices may share payment
+
+ADDING NEW CARDS
+----------------
+When new card encountered:
+1. Claude asks: "New card ending XXXX detected. Which account?"
+2. Add to this file
+3. Update payment_methods.json
+4. Use for future matching
+
+COMMON ACCOUNTS
+---------------
+Typical QB Account Names:
+- Operating Account
+- Business Checking
+- Business Savings
+- Payroll Account
+- Credit Card - Visa
+- Credit Card - Mastercard
+- Petty Cash
+- Money Market
+
+SPECIAL CASES
+-------------
+Split Payments:
+- Part debit, part credit
+- Track both cards used
+- Allocate amounts properly
+
+Refunds:
+- Negative amounts
+- Return to same card/account
+- Note original transaction
+
+Foreign Cards:
+- May have different format
+- Manual account assignment
+
+Store Cards:
+- Home Depot Card
+- Lowes Card
+- Link to specific liability account
+
+REPORTING
+---------
+Track Usage:
+- Most used payment methods
+- Payment method by vendor
+- Average transaction by method
+- Monthly method summary
+
+SECURITY
+--------
+- Never store full card numbers
+- Only last 4 digits for matching
+- No CVV or PIN storage
+- Mask in all displays
+
+AUTOMATION BENEFITS
+-------------------
+With payment methods defined:
+- Auto-match to correct account
+- Reduce entry errors
+- Speed up processing
+- Consistent categorization
+- Better cash flow tracking

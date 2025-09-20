@@ -155,33 +155,25 @@ The system automatically applies vendor-specific check numbers when paying bills
 Settings are defined in `src/config/vendor_payment_settings.json` and automatically applied during PAY_BILLS command.
 Can be overridden by passing explicit `check_number` parameter.
 
-## Common QB Commands via qbc.py
-All commands use format: `python qbc.py <COMMAND> param1=value1`
+## QuickBooks Commands
+**IMPORTANT**: Fully read and understand all available commands before use.
+**REFERENCE**: See `QB_COMMANDS_REFERENCE.md` for complete documentation of all 40+ commands with parameters and examples.
 
-### Most Used Commands:
-- `GET_WORK_BILL vendor_name=Adrian` - Get vendor's current bill
-- `UPDATE_WORK_BILL vendor_name=Adrian remove_days='["friday"]'` - Remove days from bill
-- `UPDATE_WORK_BILL vendor_name=Adrian add_days='["saturday"]'` - Add days to bill
-- `PAY_BILLS vendor_name=Adrian amount=650` - Pay vendor bills
-- `GET_WORK_WEEK_SUMMARY` - Get weekly summary
-- `SEARCH_VENDORS search_term=adrian` - Find vendors
-- `CREATE_WORK_BILL vendor_name=Adrian days_worked=5 daily_cost=250` - Create new bill
+The commands are executed via: `python qbc.py <COMMAND> param1=value1`
 
-### Full Command List:
-Check src/qb/connector.py lines 71-122 for all 40+ available commands including:
-- Work Bills: GET_WORK_BILL, CREATE_WORK_BILL, UPDATE_WORK_BILL, DELETE_BILL
-- Vendors: SEARCH_VENDORS, CREATE_VENDOR, UPDATE_VENDOR
-- Customers: SEARCH_CUSTOMERS, CREATE_CUSTOMER
-- Checks: CREATE_CHECK, SEARCH_CHECKS, GET_CHECK, DELETE_CHECK
-- Invoices: SEARCH_INVOICES, CREATE_INVOICE, GET_INVOICE
-- Payments: PAY_BILLS, CREATE_BILL_PAYMENT, SEARCH_BILL_PAYMENTS
-- Items/Accounts/Deposits: Various search and create commands
+Command definitions are in `src/qb/connector.py` lines 83-141.
 
 ## Error Handling
 - Use [OK], [ERROR], [WARNING] instead of Unicode
 - Provide clear error messages
 - Log all errors with context
 - Never crash the server
+
+## Inbox Document Processing
+**INBOX LOCATION**: `\\vmware-host\Shared Folders\D\OneDrive\Inbox` (phone scans and uploaded pics land here)
+**BASH PATH**: `//vmware-host/Shared Folders/D/OneDrive/Inbox` (use this format in bash commands)
+**INSTRUCTIONS**: See `upload/MASTER_PROCESSING_GUIDE.txt` and `upload/processing_instructions/GENERAL_RULES.txt`
+**COMMANDS**: "process inbox" or "process new documents" to start processing
 
 ## Deployment Notes
 - Use environment variables for configuration

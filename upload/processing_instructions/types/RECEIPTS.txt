@@ -1,0 +1,181 @@
+RECEIPT PROCESSING INSTRUCTIONS
+================================
+
+DOCUMENT IDENTIFICATION
+-----------------------
+Identifying Features:
+- Itemized list of products/services
+- Subtotal, tax, total structure
+- Payment method shown
+- Transaction/receipt number
+- Store/vendor information at top
+
+Common Keywords:
+- "RECEIPT", "SALE", "TRANSACTION"
+- "SUBTOTAL", "TAX", "TOTAL"
+- "THANK YOU", "CUSTOMER COPY"
+
+REQUIRED EXTRACTIONS
+---------------------
+Mandatory Fields:
+1. Vendor name
+2. Transaction date
+3. Total amount
+4. Receipt/transaction number
+
+Optional Fields:
+- Individual items and prices
+- Tax amount(s)
+- Payment method
+- Store location/number
+- Cashier name
+- Time of transaction
+
+DATA LOCATIONS
+--------------
+Vendor:
+- Top of receipt (logo/header)
+- Store name in large text
+
+Date:
+- Near top after store info
+- Formats: MM/DD/YY, MM/DD/YYYY
+- May include time
+
+Total:
+- Bottom section
+- After tax line(s)
+- Largest amount
+- Keywords: "TOTAL", "AMOUNT DUE"
+
+Transaction Number:
+- Bottom of receipt
+- Near barcode
+- Keywords: "Trans #", "Receipt #"
+
+QUICKBOOKS ENTRY
+----------------
+Posting Logic:
+- Under $100: Direct expense
+- Over $100: Create bill
+- Cash purchase: Check entry
+- Credit card: Credit card charge
+
+Account Selection:
+- Match by vendor type
+- Use item categories if detailed
+- Default: Operating Expenses
+
+ITEM EXTRACTION
+---------------
+For detailed receipts:
+- Item code/SKU
+- Description
+- Quantity
+- Unit price
+- Extended price
+
+Skip items like:
+- Bag fees
+- CRV/deposits (separate line)
+
+TAX HANDLING
+------------
+Single Tax:
+- Post as single tax amount
+
+Multiple Tax Rates:
+- State tax
+- County tax
+- City tax
+- Special district tax
+- Combine for total tax
+
+PAYMENT INFORMATION
+-------------------
+Cash:
+- "CASH", "TENDER"
+- Change given
+
+Credit/Debit:
+- Last 4 digits
+- Card type
+- Approval code
+
+Check:
+- Check number
+- Driver's license
+
+Gift Card:
+- Card number (masked)
+- Balance remaining
+
+SPECIAL CASES
+-------------
+Split Payment:
+- Multiple payment methods
+- Note each amount
+
+Refunds/Returns:
+- Negative amounts
+- "REFUND" keyword
+- Original trans reference
+
+Voided Items:
+- Strikethrough or "VOID"
+- Don't include in total
+
+Discounts:
+- Percentage or dollar off
+- Coupon codes
+- Loyalty discounts
+
+VALIDATION CHECKS
+-----------------
+- Items + tax = total
+- Date not in future
+- Positive amounts (unless refund)
+- Vendor exists or creatable
+- No duplicate entry
+
+COMMON FORMATS
+--------------
+Retail Store:
+- Header with logo
+- Items in middle
+- Payment at bottom
+
+Restaurant:
+- Table/server info
+- Food items
+- Tip line
+- Pre-tip and post-tip total
+
+Gas Station:
+- Pump number
+- Gallons and price/gallon
+- Inside store items separate
+
+ERROR HANDLING
+--------------
+Missing Vendor:
+- Check phone number
+- Google address
+- Use generic category
+
+Missing Date:
+- Use today's date
+- Add note about missing date
+
+Illegible Total:
+- Sum visible items
+- Estimate tax if standard rate
+- Flag for review
+
+ARCHIVAL
+--------
+After Processing:
+- Keep original image
+- Save extracted data as JSON
+- Include in monthly summary
+- Backup to cloud storage

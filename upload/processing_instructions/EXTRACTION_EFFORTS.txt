@@ -1,0 +1,214 @@
+EXHAUSTIVE EXTRACTION BEFORE ASKING USER
+=========================================
+
+PRINCIPLE
+---------
+ALWAYS TRY EVERYTHING before asking the user for information.
+The data is usually there - you must find it.
+
+PAYMENT CARD EXTRACTION
+-----------------------
+
+PRIMARY METHOD - AI Vision Capabilities:
+1. USE AI/LLM VISUAL ANALYSIS FIRST
+   - AI can read faded text better than OCR
+   - AI understands context and patterns
+   - AI can interpret partial/obscured numbers
+   - AI can read handwriting
+   - AI can handle poor image quality
+
+2. Where to Look for Card Numbers:
+   - Payment receipt body
+   - Pattern: ****1234 or XXXX-XXXX-XXXX-1234
+   - Near "DEBIT" or "CREDIT" text
+   - Transaction details section
+
+2. Receipt footer
+   - Authorization section
+   - Approval codes area
+   - Reference numbers (may contain last 4)
+
+3. Merchant copy vs customer copy
+   - Different copies show different details
+   - Check both if available
+
+4. Bank authorization box
+   - Small print areas
+   - Security code sections
+
+5. Handwritten additions
+   - Users often write card info
+   - Check margins and blank spaces
+
+Extraction Techniques:
+- Zoom in on payment area
+- Increase contrast for faded text
+- Look for patterns: 4 asterisks + 4 digits
+- Check for partial numbers (even 2 digits help narrow down)
+- Transaction ID may contain card digits
+
+Common Patterns:
+- "Debit ****6664"
+- "Card ending in 8631"
+- "XXXX-XXXX-XXXX-5635"
+- "Account ...6664"
+- "From checking ****8631"
+
+VENDOR NAME EXTRACTION
+----------------------
+
+Look Everywhere:
+1. Receipt header (biggest text usually)
+2. Logo recognition
+3. Footer (small print company name)
+4. Return address
+5. Website URL (extract company from domain)
+6. Email addresses (@company.com)
+7. Phone number (search online if needed)
+8. Store number (chains have standard formats)
+9. Tax ID number (can lookup business)
+10. Credit card statement descriptor
+
+JOB/CUSTOMER EXTRACTION
+------------------------
+
+Check for Written Notes:
+- Handwritten on receipt
+- Sticky notes in image
+- Job numbers on invoice
+- Project codes
+- Customer PO numbers
+- Delivery address (job site)
+- "For: [customer name]"
+- Account numbers
+
+DATES EXTRACTION
+----------------
+
+Multiple Date Locations:
+1. Transaction date/time
+2. System date stamps
+3. Handwritten dates
+4. Bank processing date
+5. Due dates
+6. Service dates
+7. Approval timestamps
+
+Try Different Formats:
+- MM/DD/YY
+- MM/DD/YYYY
+- DD/MM/YYYY (international)
+- Month DD, YYYY
+- YYYY-MM-DD
+- Timestamp conversions
+
+AMOUNT EXTRACTION
+-----------------
+
+Find Total Amount:
+1. "TOTAL" line (largest amount)
+2. "Amount Due"
+3. "Balance"
+4. Payment confirmation amount
+5. Sum line items if total unclear
+6. Check subtotal + tax
+7. Authorization amount
+8. Settlement amount
+
+Handle Difficult Cases:
+- Faded thermal receipts
+- Partial numbers visible
+- Multiple totals (use largest)
+- Tips added (restaurant)
+
+ITEM DETAILS EXTRACTION
+-----------------------
+
+Extract Everything Visible:
+1. Line items with codes
+2. Descriptions (even partial)
+3. Quantities
+4. Unit prices
+5. SKUs/Part numbers
+6. Department codes
+7. Discount codes
+8. Category markers
+
+Even Partial Info Helps:
+- "2x4" -> Lumber
+- "SCREW" -> Hardware
+- First 3 digits of SKU
+- Price patterns
+
+CHECK NUMBER EXTRACTION
+-----------------------
+
+Where to Find:
+1. Top right corner (standard)
+2. MICR line at bottom
+3. Handwritten on invoice
+4. Bank statement reference
+5. Memo line references
+6. Duplicate/carbon copy
+
+Special Check Types:
+- "ATM" written as check number
+- "Zelle" as payment type
+- "Wire" or "ACH" notation
+- Online bill pay number
+
+BEFORE ASKING USER
+-------------------
+
+Checklist - Did You:
+[ ] Check all pages/images uploaded
+[ ] Look at payment receipt specifically
+[ ] Zoom in on key areas
+[ ] Try image enhancement
+[ ] Check handwritten notes
+[ ] Look for partial information
+[ ] Search QuickBooks for matches
+[ ] Check previous similar transactions
+[ ] Look for patterns in data
+[ ] Read all small print
+
+Only Ask User When:
+1. Genuinely cannot find after all attempts
+2. Multiple possibilities need clarification
+3. Critical info is cut off/missing
+4. Image quality prevents reading
+5. Conflicting information found
+
+ASKING SMARTLY
+--------------
+
+If Must Ask, Be Specific:
+BAD: "What's the payment method?"
+GOOD: "I can see a debit card was used but the last 4 digits are not clearly visible. Is it 6664, 8631, or 5635?"
+
+BAD: "Which vendor?"
+GOOD: "The receipt shows 'PIP' - is this 'Precision Interior Producs, LLC' from QuickBooks?"
+
+BAD: "What job?"
+GOOD: "Which job should this $37.32 PIP purchase be assigned to?"
+
+Show What You Found:
+- "I found the amount ($37.32) and date (09/15)"
+- "Vendor appears to be Precision Interior Products"
+- "Payment was debit card but digits are unclear"
+- "Now I just need: [specific missing items]"
+
+LEARNING PATTERNS
+-----------------
+
+Document Patterns:
+- Home Depot: Check number often handwritten on receipt
+- Bank statements: Last 4 always in transaction description
+- Zelle: Confirmation number contains date
+- Store receipts: Card info always near total
+
+Build Knowledge:
+- This vendor always uses same format
+- Card info location is consistent
+- Job numbers in same spot
+- Learn each vendor's receipt layout

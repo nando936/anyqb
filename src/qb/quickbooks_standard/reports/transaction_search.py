@@ -67,29 +67,54 @@ class TransactionSearch:
 
             # Parse report and filter by amount
             transactions = []
+            seen_transactions = set()  # Track unique transactions
+
             if hasattr(response, 'Detail') and response.Detail:
                 report = response.Detail
                 all_txns = self._parse_general_report(report)
 
-                # Filter by amount
+                # Filter by amount and deduplicate
                 for txn in all_txns:
                     txn_amount = abs(float(txn.get('amount', 0)))
                     if abs(txn_amount - abs(amount)) <= tolerance:
-                        transactions.append({
-                            'type': txn.get('txn_type', 'Unknown'),
-                            'date': txn.get('date', 'N/A'),
-                            'amount': txn_amount,
-                            'name': txn.get('name', 'N/A'),
-                            'ref_number': txn.get('ref_number', ''),
-                            'memo': txn.get('memo', ''),
-                            'account': txn.get('account', 'N/A'),
-                            'txn_id': txn.get('txn_id', 'N/A')
-                        })
+                        # Create unique key for deduplication
+                        txn_type = txn.get('txn_type', 'Unknown')
+                        txn_date = txn.get('date', 'N/A')
+                        txn_name = txn.get('name', 'N/A')
+                        account = txn.get('account', 'N/A')
+
+                        # Filter out duplicate accounting entries
+                        # For Invoices/Payments: Skip "Accounts Receivable" entries
+                        # For Bills: Skip "Accounts Payable" entries
+                        # This keeps only the meaningful account (income/expense/bank)
+
+                        skip_entry = False
+                        if txn_type in ['Invoice', 'Payment'] and account == 'Accounts Receivable':
+                            skip_entry = True
+                        elif txn_type == 'Bill' and account == 'Accounts Payable':
+                            skip_entry = True
+
+                        # Create unique transaction key
+                        txn_key = (txn_type, txn_date, txn_name, txn_amount)
+
+                        # Add transaction if not skipped and not already seen
+                        if not skip_entry and txn_key not in seen_transactions:
+                            seen_transactions.add(txn_key)
+                            transactions.append({
+                                'type': txn_type,
+                                'date': txn_date,
+                                'amount': txn_amount,
+                                'name': txn_name,
+                                'ref_number': txn.get('ref_number', ''),
+                                'memo': txn.get('memo', ''),
+                                'account': account,
+                                'txn_id': txn.get('txn_id', 'N/A')
+                            })
 
             # Sort by date (newest first)
             transactions.sort(key=lambda x: x.get('date', ''), reverse=True)
 
-            logger.info(f"[OPTIMIZED] Found {len(transactions)} matching transactions")
+            logger.info(f"[OPTIMIZED] Found {len(transactions)} unique transactions")
 
             return {
                 "success": True,
@@ -229,7 +254,7 @@ class TransactionSearch:
             if not fast_qb_connection.connect():
                 return {"success": False, "error": "Failed to connect to QuickBooks"}
 
-            logger.info(f"[SLOW METHOD] Searching 5 transaction types for ${amount:.2f}")
+            logger.info(f"[SLOW METHOD] Searching 6 transaction types for ${amount:.2f}")
             transactions = []
 
             # Search Checks first
@@ -251,7 +276,11 @@ class TransactionSearch:
             # Search Deposits
             logger.info("Searching deposits...")
             transactions.extend(self._search_deposits(amount, date_from, date_to, tolerance))
-            
+
+            # Search Customer Payments (ReceivePayments)
+            logger.info("Searching customer payments...")
+            transactions.extend(self._search_receive_payments(amount, date_from, date_to, tolerance))
+
             # Sort by date
             transactions.sort(key=lambda x: x.get('date', ''), reverse=True)
             
@@ -454,7 +483,45 @@ class TransactionSearch:
             logger.debug(f"Error searching deposits: {e}")
         
         return transactions
-    
+
+    def _search_receive_payments(self, amount: float, date_from: Optional[str], date_to: Optional[str], tolerance: float) -> List[Dict]:
+        """Search customer payment (ReceivePayment) transactions"""
+        transactions = []
+        try:
+            request_set = fast_qb_connection.create_request_set()
+            payment_query = request_set.AppendReceivePaymentQueryRq()
+
+            # Date filter
+            if date_from or date_to:
+                date_filter = payment_query.ORTxnQuery.TxnFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter
+                if date_from:
+                    date_filter.FromTxnDate.SetValue(self._parse_date(date_from))
+                if date_to:
+                    date_filter.ToTxnDate.SetValue(self._parse_date(date_to))
+
+            response_set = fast_qb_connection.process_request_set(request_set)
+            response = response_set.ResponseList.GetAt(0)
+
+            if response.StatusCode == 0 and response.Detail:
+                for i in range(response.Detail.Count):
+                    payment = response.Detail.GetAt(i)
+                    payment_amount = payment.TotalAmount.GetValue() if hasattr(payment, 'TotalAmount') and payment.TotalAmount else 0
+
+                    if abs(abs(payment_amount) - amount) <= tolerance:
+                        transactions.append({
+                            'type': 'ReceivePayment',
+                            'date': str(payment.TxnDate.GetValue())[:10] if hasattr(payment, 'TxnDate') else 'N/A',
+                            'amount': payment_amount,
+                            'name': payment.CustomerRef.FullName.GetValue() if hasattr(payment, 'CustomerRef') and payment.CustomerRef and hasattr(payment.CustomerRef, 'FullName') else 'N/A',
+                            'ref_number': payment.RefNumber.GetValue() if hasattr(payment, 'RefNumber') and payment.RefNumber else '',
+                            'memo': payment.Memo.GetValue() if hasattr(payment, 'Memo') and payment.Memo else '',
+                            'txn_id': payment.TxnID.GetValue() if hasattr(payment, 'TxnID') else 'N/A'
+                        })
+        except Exception as e:
+            logger.debug(f"Error searching receive payments: {e}")
+
+        return transactions
+
     def _parse_date(self, date_str: str) -> str:
         """Parse date string to YYYY-MM-DD format"""
         # Handle MM-DD-YYYY or MM/DD/YYYY

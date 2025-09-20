@@ -1,0 +1,381 @@
+GENERAL PROCESSING RULES
+========================
+
+INBOX LOCATION: \\vmware-host\Shared Folders\D\OneDrive\Inbox
+
+DEFAULT SETTINGS
+----------------
+These rules apply to all documents unless overridden by vendor/type specific rules.
+
+DOCUMENT CLASSIFICATION
+-----------------------
+Priority order for classification:
+1. Vendor-specific rules (if vendor identified)
+2. Document type rules (if type identified)
+3. General rules (fallback)
+
+REQUIRED FIELDS
+---------------
+All documents must have:
+- Date (transaction date)
+- Amount (total amount)
+- Vendor/Payee (who to/from)
+- Job/Customer name (REQUIRED - must ask if not found)
+- Item(s) to use (REQUIRED - must ask if not specified)
+- Payment method and proof (REQUIRED - look for payment receipt)
+
+Must find or ask for:
+- Which QuickBooks item(s) to use for purchase
+- How it was paid (check #, credit card, cash, etc.)
+- Payment date if different from invoice date
+- Which bank/credit card account was used
+
+Optional but recommended:
+- Reference number (check #, invoice #, etc.)
+- Description/memo
+- Tax amount (if applicable)
+
+DUPLICATE CHECKING (MUST DO FIRST)
+-----------------------------------
+BEFORE processing any document, ALWAYS check for duplicates:
+
+1. CHECK PROCESSED FOLDER FIRST:
+   - Look in processed_transactions/[vendor]/ for existing files
+   - Check transaction_log.json for matching amounts/dates
+   - If file already exists with same receipt number, STOP
+
+2. SEARCH QUICKBOOKS BY AMOUNT:
+   - Use SEARCH_TRANSACTION_BY_AMOUNT amount=[amount]
+   - This searches ALL transaction types (checks, bills, invoices, deposits, etc.)
+   - Review all results to check if vendor and date match
+   - Look at memo/description fields for receipt numbers
+
+3. VERIFY NOT A DUPLICATE:
+   - Same vendor + same amount + same date = likely duplicate
+   - Same check number = definite duplicate
+   - Same invoice/receipt number = definite duplicate
+
+4. IF DUPLICATE FOUND:
+   - STOP processing immediately
+   - Alert user: "Transaction may already exist: [details]"
+   - Ask user to confirm if should proceed anyway
+   - Move to processed folder with "_duplicate" suffix if confirmed
+
+DOCUMENT DATA EXTRACTION - ALL TOGETHER
+----------------------------------------
+EXTRACT ALL FIELDS IN ONE PASS using AI vision capabilities:
+
+1. DATE - Common patterns:
+   - MM/DD/YYYY or MM/DD/YY
+   - Look at top of document first
+
+2. AMOUNT - Look for:
+   - "TOTAL", "TOTAL DUE", "AMOUNT DUE"
+   - Largest numeric value often the total
+   - Subtotal and tax amounts
+
+3. LINE ITEMS (CRITICAL - MUST EXTRACT):
+   For each line item, extract:
+   - Item code/SKU
+   - Description/name
+   - Quantity
+   - Unit price
+   - Extended price
+   - Category (if shown)
+
+4. VENDOR - From logo/header/address
+
+5. PAYMENT INFO - From payment receipt
+
+LINE ITEM STORAGE REQUIREMENT:
+-------------------------------
+ALWAYS store line items in TWO places:
+
+1. QUICKBOOKS DESCRIPTION:
+   - Put line item details in the description field
+   - Format: "PIP Receipt 203537: [Wood products, Building materials, etc.]"
+   - Include key items even if abbreviated
+
+2. METADATA FILE (MANDATORY):
+   - Save complete details as JSON
+   - File: 01-15-2025_pip_receipt_203537_37.32_items.json
+   - Full searchability for "what did I pay for X last time"
+   - Include ALL visible product details
+
+NO NEED TO ASK - Just do both automatically
+
+VENDOR IDENTIFICATION
+---------------------
+Check in order:
+1. Logo text/image
+2. "Pay to" or "From" fields
+3. Phone number lookup
+4. Address matching
+5. Document format patterns
+
+QUICKBOOKS VENDOR MATCHING:
+After extracting vendor name from document:
+1. Search QuickBooks using fuzzy match
+2. Use SEARCH_VENDORS command with partial name
+3. Accept matches with >80% confidence
+4. If multiple matches, show list to user
+5. If no match found, ask if new vendor
+
+Example:
+- Document shows: "PIP" or "Precision Interior"
+- Search QB: SEARCH_VENDORS search_term=precision
+- Found: "Precision Interior Producs, LLC" (90% match)
+- Use this vendor (even with typos)
+
+NO DEFAULTS - If vendor cannot be matched:
+1. Show QuickBooks search results
+2. Ask user: "Is this vendor [found name] or a new vendor?"
+3. Never guess or assume vendor name
+4. Wait for user confirmation
+5. Add to known vendor mappings
+
+JOB/CUSTOMER ASSIGNMENT
+-----------------------
+CRITICAL: Every transaction MUST have a job/customer assigned
+NO DEFAULTS - ALWAYS ASK if not explicitly shown
+
+If job/customer cannot be determined from document:
+1. STOP processing
+2. Ask user: "What job/customer is this [vendor] [receipt/invoice] for?"
+3. Never assume or use default customer
+4. Wait for user response
+5. Continue processing with provided job/customer
+
+Common job indicators to look for:
+- Project number or name
+- Job site address
+- Customer name
+- PO references
+- Written notes on document
+
+IMPORTANT: Even if same vendor/amount as before, still ask for job/customer
+
+EXCEPTIONS:
+- Brannen's Inc (tool/supply vendor) - Overhead expense, no job/customer required
+- Office Depot - Use "Other Name" type, typically overhead expense, no job/customer required
+
+PAYEE TYPES IN QUICKBOOKS:
+- Vendors - Regular suppliers/contractors
+- Customers - Can also be payees for refunds
+- Employees - For payroll/reimbursements
+- Other Names - Miscellaneous payees like Office Depot, gas stations, stores
+Note: SEARCH_VENDORS should also search Other Names when looking for payees
+If payee not found, create as Other Name for retail stores/misc payees
+
+ITEM ASSIGNMENT
+---------------
+CRITICAL: All purchases must use QuickBooks ITEMS, not expense accounts
+
+VENDOR-SPECIFIC ITEM RULES:
+- Office Depot:
+  * For ink purchases → Use "printer ink" items (match specific type if possible)
+  * For other office supplies → Search for "office" items
+  * Default to overhead, no job assignment
+
+If items cannot be determined from receipt:
+1. STOP processing
+2. Ask user: "What QuickBooks item(s) should be used for this [vendor] purchase?"
+3. If multiple lines, ask for item breakdown
+4. Wait for user response
+5. Continue with specified items
+
+PAYMENT INFORMATION
+-------------------
+CRITICAL: Must identify HOW and WHEN the invoice/receipt was paid
+
+PAIRED DOCUMENT MATCHING:
+Most vendor bills/receipts will have a SEPARATE payment receipt uploaded.
+Claude must:
+1. Check inbox (\\vmware-host\Shared Folders\D\OneDrive\Inbox) for matching payment documents
+2. Match by vendor name, amount, or date proximity
+3. Common payment receipt formats:
+   - Bank statement showing payment
+   - Check image (front and back)
+   - Credit card receipt
+   - Zelle/Venmo/PayPal confirmation
+   - Wire transfer confirmation
+   - ATM withdrawal slip
+
+Matching Logic:
+- Same vendor name in both documents
+- Same or similar amount
+- Payment date on/after invoice date
+- Reference numbers matching
+
+Payment Receipt Data to Extract:
+- Payment method (Check #, Credit Card last 4, etc.)
+- Payment date
+- Bank or credit card account used
+- Transaction/confirmation number
+- Any fees charged
+
+If payment document not found in inbox:
+1. STOP processing
+2. Ask user: "Is there a payment receipt for this [vendor] [amount] invoice?"
+3. If yes: "Please upload the payment receipt"
+4. If no: Ask for payment details manually
+5. Wait for user response
+6. Continue with payment details
+
+PAYMENT METHOD MATCHING:
+CRITICAL: EXHAUST ALL METHODS before asking user
+
+Extract payment info - USE AI VISION FIRST:
+1. AI/LLM visual analysis (most powerful method)
+   - Can read faded/poor quality images
+   - Understands context and patterns
+   - Reads handwriting and partial numbers
+2. Card receipts: Look for asterisks pattern (****1234)
+3. Bank statements: Check highlighted transactions
+4. Online confirmations: Transaction IDs often contain last 4
+5. Handwritten notes on invoice
+6. Check images: Front and back
+7. Enhanced image contrast if faded
+8. Multiple angles if partially visible
+
+Debit Cards (last 4 digits):
+- 6664 -> [Assigned account]
+- 8631 -> [Assigned account]
+- 5635 -> [Assigned account]
+
+Credit Cards:
+- [To be added with last 4 digits]
+
+Check Numbers:
+- "ATM" -> ATM withdrawal account
+- "Zelle" -> Operating account
+- Numeric -> Based on check range
+
+ONLY ask user if:
+- Tried all extraction methods
+- Enhanced/rotated image
+- Checked all pages/documents
+- Still cannot determine payment method
+
+QUICKBOOKS REQUIREMENTS
+-----------------------
+NO DEFAULTS ALLOWED - User must specify EVERYTHING:
+- Vendor: [MUST BE CONFIRMED BY USER]
+- Items: [MUST BE PROVIDED BY USER - NO EXPENSES]
+- Class: [MUST BE PROVIDED BY USER]
+- Customer/Job: [MUST BE PROVIDED BY USER] (Exception: Brannen's Inc - overhead, no job required)
+- Payment Method: [MUST BE PROVIDED BY USER]
+- Payment Account: [MUST BE PROVIDED BY USER]
+- Terms: [MUST BE PROVIDED BY USER]
+- Tax: [MUST BE CONFIRMED BY USER]
+- Billable Status: ALWAYS NON-BILLABLE (never mark as billable unless explicitly requested)
+
+ABSOLUTELY NO DEFAULTS OR ASSUMPTIONS
+
+THRESHOLDS
+----------
+- Under $100: Post as item purchase/check
+- $100-$500: Create bill with items (due in 30 days)
+- Over $500: Create bill with items (review required)
+NOTE: All purchases must use ITEMS, not expenses
+
+FILE NAMING
+-----------
+Processed files renamed to:
+MM-DD-YYYY_[vendor]_[type]_[number]_[amount].[ext]
+Example: 01-15-2025_homedepot_receipt_001_125.43.jpg
+Example: 01-15-2025_homedepot_check_1234_125.43.jpg
+
+Format Details:
+- Date: MM-DD-YYYY format
+- Vendor: Lowercase, no spaces (home_depot or homedepot)
+- Type: invoice, receipt, check, payment, statement, etc.
+- Number: Transaction/check/invoice number
+- Amount: Total amount with decimal point
+- Extension: Original file extension
+
+DATA STORAGE
+------------
+For each processed document, save:
+1. Original file in processed_transactions/[vendor]/
+2. JSON file with extracted data
+3. Log entry with QB transaction ID
+
+ERROR HANDLING
+--------------
+If extraction fails:
+1. Try alternative patterns
+2. Check vendor-specific rules
+3. Move to failed/ with error reason
+4. Log issue for manual review
+
+VALIDATION RULES
+----------------
+- DUPLICATE CHECK FIRST (search QB by amount, verify vendor/date)
+- Amounts must be positive numbers
+- Dates cannot be in future
+- Vendor must exist in QB or be creatable
+- Job/Customer MUST be specified (no posting without it)
+- Items MUST be specified (no expense accounts allowed)
+- Payment method and account MUST be identified
+- No duplicate transactions (same vendor/amount/date/receipt#)
+
+WORK BILL PAYMENTS (CRITICAL SECTION)
+--------------------------------------
+For payments to daily workers (Jaciel, Adrian, Elmer, Selvin, Bryan):
+
+MUST USE PAY_BILLS COMMAND:
+- ALWAYS use PAY_BILLS command for worker payments
+- NEVER use CREATE_CHECK (this creates orphan payments)
+- PAY_BILLS properly links payment to the work bill
+
+REQUIRED WORKFLOW:
+1. Extract payment date FROM DOCUMENT (never use today)
+2. Find matching work bill using GET_WORK_BILL
+3. Match payment to specific bill (see PAYMENT_TO_WORK_BILL_MATCHING.txt)
+4. Use PAY_BILLS with payment_date parameter
+
+PAYMENT DATE IS CRITICAL:
+- ALWAYS extract actual payment date from document
+- Check date, ATM transaction date, Zelle transfer date
+- Format: YYYY-MM-DD for the command
+- NEVER default to today's date
+
+VENDOR-SPECIFIC PAYMENT METHODS:
+- Jaciel: check_number="ATM" (for ATM/cash)
+- Adrian, Elmer, Selvin, Bryan: check_number="Zelle"
+- Actual checks: Use real check number
+
+EXAMPLE COMMAND:
+python qbc.py PAY_BILLS vendor_name="Jaciel" amount=650 payment_date="2025-01-15" ref_number="ja_01/12-01/18/25" check_number="ATM"
+
+See WORK_BILL_PAYMENT_WORKFLOW.txt for complete workflow
+
+QB POSTING RULES
+----------------
+STAGING ONLY - NO AUTOMATIC POSTING:
+1. Prepare complete transaction details
+2. Display full transaction summary to user
+3. Ask: "Ready to post this transaction to QuickBooks?"
+4. ONLY post after explicit approval
+5. Never post without user confirmation
+
+IF POSTING FAILS:
+- STOP immediately - do not try alternatives
+- Show exact error message
+- Ask: "The [command] failed with error: [error]. How would you like to proceed?"
+- Options might include:
+  * Create as different transaction type
+  * Fix missing data
+  * Create vendor/item first
+- Wait for user instruction
+
+Transaction Memo:
+- Always include source file name(s)
+- Reference both invoice and payment docs
+- Include check number if applicable
+
+Terms and Tax:
+- Use vendor's default payment terms
+- Apply appropriate sales tax if identified
+- Link to customer/job as specified

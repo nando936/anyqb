@@ -1,0 +1,220 @@
+INVOICE PROCESSING INSTRUCTIONS
+================================
+
+DOCUMENT IDENTIFICATION
+-----------------------
+Identifying Features:
+- "INVOICE" header/title
+- Invoice number
+- Bill To / Ship To sections
+- Payment terms
+- Due date
+- Detailed line items with quantities
+
+Common Keywords:
+- "INVOICE", "BILL", "STATEMENT"
+- "DUE DATE", "PAYMENT TERMS"
+- "BILL TO", "REMIT TO"
+- "NET 30", "DUE ON RECEIPT"
+
+REQUIRED EXTRACTIONS
+---------------------
+Mandatory Fields:
+1. Vendor/Supplier name
+2. Invoice number
+3. Invoice date
+4. Due date
+5. Total amount
+6. Bill to information
+
+Optional Fields:
+- PO number
+- Payment terms
+- Line items detail
+- Shipping charges
+- Discount terms
+- Tax details
+- Project/Job reference
+
+DATA LOCATIONS
+--------------
+Vendor:
+- Top of invoice (letterhead)
+- "From" or company logo area
+- Remit to address
+
+Invoice Number:
+- Top right usually
+- "Invoice #", "Invoice No."
+- May be alphanumeric
+
+Dates:
+- Invoice Date: Near invoice number
+- Due Date: In terms section
+- Ship Date: If applicable
+
+Amount:
+- Bottom of invoice
+- "Total Due", "Balance Due"
+- After subtotal and tax
+
+QUICKBOOKS ENTRY
+----------------
+Transaction Type:
+- Always create as Bill
+- Enter bill date and due date
+- Assign to vendor
+
+Terms Mapping:
+- "Net 30" -> 30 days
+- "Net 15" -> 15 days
+- "Due on Receipt" -> 0 days
+- "2/10 Net 30" -> 30 days with discount
+
+Account Selection:
+- Based on items purchased
+- Use vendor default account
+- Split if multiple categories
+
+LINE ITEM EXTRACTION
+--------------------
+For Each Item:
+- Item code/Part number
+- Description
+- Quantity
+- Unit price
+- Extended amount
+- Account category
+
+Special Lines:
+- Shipping/Freight
+- Handling fees
+- Fuel surcharges
+- Rush charges
+
+VENDOR VERIFICATION
+-------------------
+New Vendor:
+- Extract full company name
+- Address
+- Phone number
+- Email
+- Tax ID if shown
+- Create in QB if needed
+
+Existing Vendor:
+- Match by name
+- Verify address matches
+- Update if changed
+
+PAYMENT TERMS
+-------------
+Standard Terms:
+- Net 30, Net 15, Net 60
+- Due on receipt
+- End of month
+
+Discount Terms:
+- 2/10 Net 30 (2% if paid in 10 days)
+- 1/15 Net 30
+- Track in QB for discount
+
+SPECIAL HANDLING
+----------------
+Partial Shipments:
+- Note "Partial" on invoice
+- Track against PO
+- Wait for final invoice
+
+Credit Memos:
+- Negative amounts
+- "CREDIT MEMO" header
+- Reference original invoice
+
+Recurring Invoices:
+- Monthly services
+- Subscription fees
+- Set up recurring bill
+
+Deposits/Prepayments:
+- "Deposit Required"
+- Track separately
+- Apply to final invoice
+
+TAX HANDLING
+------------
+Sales Tax:
+- State rate
+- Local rate
+- Tax-exempt note
+
+Use Tax:
+- Out-of-state purchases
+- Self-assess if needed
+
+PROJECT TRACKING
+----------------
+Job References:
+- PO number
+- Project number
+- Job name/site
+- Assign to QB job
+
+Cost Codes:
+- Construction phases
+- Department codes
+- Grant codes
+
+APPROVAL WORKFLOW
+-----------------
+Amount Thresholds:
+- Under $1000: Auto-approve
+- $1000-$5000: Manager review
+- Over $5000: Owner approval
+
+Required Approvals:
+- New vendors
+- Unusual items
+- Over budget amounts
+
+VALIDATION CHECKS
+-----------------
+- Invoice number unique
+- Vendor exists in QB
+- Math: Items + tax = total
+- Due date calculation correct
+- PO match if applicable
+
+COMMON FORMATS
+--------------
+Professional Services:
+- Hourly billing
+- Project descriptions
+- Expense reimbursements
+
+Materials Supplier:
+- Item codes
+- Unit quantities
+- Bulk discounts
+
+Utilities:
+- Account number
+- Service period
+- Usage details
+- Rate schedules
+
+DUPLICATE DETECTION
+--------------------
+Check For:
+- Same invoice number
+- Same vendor + date + amount
+- Warning if potential duplicate
+- Note if intentional
+
+FILING
+------
+After Processing:
+- Save PDF to vendor folder
+- Name: [Vendor]_INV_[Number]_[Date]
+- Link to QB transaction
+- Archive physical if needed

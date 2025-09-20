@@ -8,6 +8,7 @@ import os
 import json
 import logging
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 from pathlib import Path
 
 # Setup path for QB imports
@@ -35,6 +36,7 @@ class QBConnector:
             from quickbooks_standard.entities.invoices.invoice_repository import InvoiceRepository
             from quickbooks_standard.entities.deposits.deposit_repository import DepositRepository
             from quickbooks_standard.entities.payments.payment_repository import PaymentRepository
+            from quickbooks_standard.entities.receive_payments.receive_payment_repository import ReceivePaymentRepository
             from quickbooks_standard.reports.job_profitability_report import JobProfitabilityReportRepository
             from quickbooks_standard.entities.purchase_orders.purchase_order_repository import PurchaseOrderRepository
             from quickbooks_standard.entities.item_receipts.item_receipt_repository import ItemReceiptRepository
@@ -54,6 +56,7 @@ class QBConnector:
             self.invoice_repo = InvoiceRepository()
             self.deposit_repo = DepositRepository()
             self.payment_repo = PaymentRepository()
+            self.receive_payment_repo = ReceivePaymentRepository()
             self.job_profit_repo = JobProfitabilityReportRepository()
             self.po_repo = PurchaseOrderRepository()
             self.item_receipt_repo = ItemReceiptRepository()
@@ -138,6 +141,11 @@ class QBConnector:
                 # Deposit Commands
                 "SEARCH_DEPOSITS": self.search_deposits,
                 "DEPOSIT_CUSTOMER_PAYMENT": self.deposit_customer_payment,
+
+                # Customer Payment Commands
+                "RECEIVE_PAYMENT": self.receive_payment,
+                "DELETE_CUSTOMER_PAYMENT": self.delete_customer_payment,
+                "SEARCH_CUSTOMER_PAYMENTS": self.search_customer_payments,
                 
                 # Report Commands
                 "GET_JOB_PROFIT": self.get_job_profit,
@@ -310,9 +318,10 @@ class QBConnector:
         
         print(f"[DEBUG] Calling work_bill_service.update_work_bill with vendor_name={vendor_name}, week_data={week_data}")
         result = self.work_bill_service.update_work_bill(vendor_name, week_data)
-        
+
         if result['success']:
-            return f"[OK] Bill updated\n{result.get('bill', '')}"
+            bill_output = result.get('bill', '')
+            return f"=== ACTUAL QB COMMAND OUTPUT - MUST DISPLAY IMMEDIATELY ===\n[OK] Bill updated\n{bill_output}\n\n[CLAUDE: Display this output in chat]\n[CRITICAL: COPY AND PASTE THE ABOVE OUTPUT INTO YOUR RESPONSE NOW]\n[DO NOT SUMMARIZE - SHOW THE ACTUAL OUTPUT]\n[FAILURE TO DISPLAY = CRITICAL ERROR]"
         else:
             return f"[ERROR] {result.get('error', 'Failed to update bill')}"
     
@@ -369,7 +378,19 @@ class QBConnector:
             job_totals = {}   # job -> total amount
             grand_total = 0.0
 
+            # Handle case where bills is None or empty
+            if not bills:
+                bills = []
+
             for bill in bills:
+                # Skip None bills
+                if bill is None:
+                    continue
+
+                # Skip if bill is not a dictionary
+                if not isinstance(bill, dict):
+                    continue
+
                 vendor_name = bill.get('vendor_name', 'Unknown')
                 bill_amount = bill.get('amount_due', 0.0)
 
@@ -380,7 +401,13 @@ class QBConnector:
                 grand_total += bill_amount
 
                 # Process line items
-                for line in bill.get('line_items', []):
+                line_items = bill.get('line_items', [])
+                if line_items is None:
+                    line_items = []
+
+                for line in line_items:
+                    if line is None or not isinstance(line, dict):
+                        continue
                     item_name = line.get('item_name', 'Unknown Item')
                     job_name = line.get('customer_name', '(No job assigned)')
                     amount = line.get('amount', 0.0)
@@ -417,6 +444,9 @@ class QBConnector:
             return formatter.format_summary(summary_data)
 
         except Exception as e:
+            import traceback
+            logger.error(f"Work week summary error: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return f"[ERROR] Failed to get work week summary: {str(e)}"
     
     # Vendor Methods
@@ -978,14 +1008,42 @@ class QBConnector:
     def search_invoices(self, **kwargs) -> str:
         """Search for invoices"""
         try:
+            # Default to current quarter if no dates provided
+            from datetime import date
+
+            if not kwargs.get('date_from') and not kwargs.get('date_to'):
+                today = date.today()
+                current_month = today.month
+                current_year = today.year
+
+                # Determine quarter
+                if current_month <= 3:  # Q1: Jan-Mar
+                    default_from = f"{current_year}-01-01"
+                    default_to = f"{current_year}-03-31"
+                elif current_month <= 6:  # Q2: Apr-Jun
+                    default_from = f"{current_year}-04-01"
+                    default_to = f"{current_year}-06-30"
+                elif current_month <= 9:  # Q3: Jul-Sep
+                    default_from = f"{current_year}-07-01"
+                    default_to = f"{current_year}-09-30"
+                else:  # Q4: Oct-Dec
+                    default_from = f"{current_year}-10-01"
+                    default_to = f"{current_year}-12-31"
+
+                kwargs.setdefault('date_from', default_from)
+                kwargs.setdefault('date_to', default_to)
+
             invoices = self.invoice_repo.search_invoices(**kwargs)
             if not invoices:
                 return "[NOT FOUND] No invoices found"
-            
+
             result = f"[OK] Found {len(invoices)} invoices\n"
-            for inv in invoices[:10]:
-                result += f"- Invoice #{inv.get('ref_number')}: ${inv.get('total', 0):.2f}\n"
-            
+            # Show ALL invoices, not just first 10
+            for inv in invoices:
+                # Include customer name for clarity
+                customer = inv.get('customer', 'Unknown')
+                result += f"- Invoice #{inv.get('ref_number')}: ${inv.get('total', 0):.2f} ({customer})\n"
+
             return result
         except Exception as e:
             return f"[ERROR] {str(e)}"
@@ -1135,6 +1193,7 @@ class QBConnector:
                 amount=amount,
                 bank_account_list_id=bank_account_id,
                 payment_method=kwargs.get('payment_method', 'Check'),
+                payment_date=kwargs.get('payment_date'),  # Accept payment date from document
                 check_number=check_number,  # Now includes vendor settings
                 memo=kwargs.get('memo', f'Payment to {vendor_name}')
             )
@@ -1335,7 +1394,184 @@ class QBConnector:
             return f"[OK] Deposit created (ID: {deposit_id})"
         except Exception as e:
             return f"[ERROR] {str(e)}"
-    
+
+    def receive_payment(self, invoice_id: str, amount: float, **kwargs) -> str:
+        """Receive payment for an invoice"""
+        try:
+            # Get invoice details first
+            invoice = self.invoice_repo.get_invoice(invoice_id)
+            if not invoice:
+                return f"[ERROR] Invoice {invoice_id} not found"
+
+            # Prepare payment data
+            payment_data = {
+                'customer_name': invoice['customer'],
+                'amount': amount,
+                'invoice_txn_id': invoice['txn_id'],
+                'payment_method': kwargs.get('payment_method', 'Check'),
+                'check_number': kwargs.get('check_number', ''),
+                'deposit_account': kwargs.get('deposit_to_account'),  # Repository expects 'deposit_account'
+                'date': kwargs.get('payment_date', datetime.now().strftime('%Y-%m-%d')),
+                'memo': kwargs.get('memo', f'Payment for Invoice #{invoice_id}')
+            }
+
+            # Create the payment
+            result = self.receive_payment_repo.create_payment(payment_data)
+
+            if result:
+                return f"[OK] Payment received for Invoice #{invoice_id}\n" \
+                       f"Payment ID: {result.get('txn_id')}\n" \
+                       f"Amount: ${amount:.2f}\n" \
+                       f"Customer: {invoice['customer']}\n" \
+                       f"Deposited to: {result.get('deposit_account', 'Undeposited Funds')}"
+            else:
+                return "[ERROR] Failed to create payment"
+        except Exception as e:
+            return f"[ERROR] {str(e)}"
+
+    def delete_customer_payment(self, payment_id: str) -> str:
+        """Delete a customer payment transaction"""
+        try:
+            result = self.receive_payment_repo.delete_payment(payment_id)
+            return "[OK] Customer payment deleted" if result else "[ERROR] Failed to delete payment"
+        except Exception as e:
+            return f"[ERROR] {str(e)}"
+
+    def search_customer_payments(self, **kwargs) -> str:
+        """Search for customer payments
+
+        Args:
+            customer_name: Customer name to search for (optional)
+            date_from: Start date MM-DD-YYYY or MM/DD/YYYY (optional, defaults to current quarter start)
+            date_to: End date MM-DD-YYYY or MM/DD/YYYY (optional, defaults to current quarter end)
+
+        Returns:
+            List of customer payments matching the criteria
+        """
+        try:
+            # Get customer name if provided
+            customer_name = kwargs.get('customer_name')
+
+            # Default to current quarter if no dates provided
+            from datetime import date
+
+            if not kwargs.get('date_from') or not kwargs.get('date_to'):
+                today = date.today()
+                current_month = today.month
+                current_year = today.year
+
+                # Determine quarter
+                if current_month <= 3:  # Q1: Jan-Mar
+                    default_from = f"01-01-{current_year}"
+                    default_to = f"03-31-{current_year}"
+                elif current_month <= 6:  # Q2: Apr-Jun
+                    default_from = f"04-01-{current_year}"
+                    default_to = f"06-30-{current_year}"
+                elif current_month <= 9:  # Q3: Jul-Sep
+                    default_from = f"07-01-{current_year}"
+                    default_to = f"09-30-{current_year}"
+                else:  # Q4: Oct-Dec
+                    default_from = f"10-01-{current_year}"
+                    default_to = f"12-31-{current_year}"
+
+                # Use provided dates or defaults
+                date_from = kwargs.get('date_from', default_from)
+                date_to = kwargs.get('date_to', default_to)
+            else:
+                date_from = kwargs.get('date_from')
+                date_to = kwargs.get('date_to')
+
+            if customer_name:
+                # Search by specific customer
+                payments = self.receive_payment_repo.find_payments_by_customer(customer_name)
+                search_desc = f"customer '{customer_name}'"
+            else:
+                # Convert date format for repository (MM-DD-YYYY to YYYY-MM-DD)
+                repo_date_from = None
+                repo_date_to = None
+
+                if date_from:
+                    parts = date_from.replace('/', '-').split('-')
+                    if len(parts) == 3 and len(parts[0]) == 2:  # MM-DD-YYYY
+                        repo_date_from = f"{parts[2]}-{parts[0]}-{parts[1]}"
+                    else:
+                        repo_date_from = date_from
+
+                if date_to:
+                    parts = date_to.replace('/', '-').split('-')
+                    if len(parts) == 3 and len(parts[0]) == 2:  # MM-DD-YYYY
+                        repo_date_to = f"{parts[2]}-{parts[0]}-{parts[1]}"
+                    else:
+                        repo_date_to = date_to
+
+                # Get all payments with date filter applied in query
+                payments = self.receive_payment_repo.get_all_payments(repo_date_from, repo_date_to)
+                search_desc = "all customers"
+
+            # Additional date filtering for customer-specific searches
+            # (since find_payments_by_customer doesn't support date filtering yet)
+            if customer_name and (date_from or date_to):
+                from datetime import datetime
+
+                # Parse dates
+                def parse_date(date_str):
+                    if not date_str:
+                        return None
+                    for fmt in ['%m-%d-%Y', '%m/%d/%Y', '%Y-%m-%d']:
+                        try:
+                            return datetime.strptime(date_str, fmt).date()
+                        except:
+                            continue
+                    return None
+
+                from_date = parse_date(date_from) if date_from else None
+                to_date = parse_date(date_to) if date_to else None
+
+                filtered_payments = []
+                for payment in payments:
+                    payment_date = parse_date(payment.get('date'))
+                    if payment_date:
+                        if from_date and payment_date < from_date:
+                            continue
+                        if to_date and payment_date > to_date:
+                            continue
+                        filtered_payments.append(payment)
+
+                payments = filtered_payments
+                if date_from and date_to:
+                    search_desc += f" from {date_from} to {date_to}"
+                elif date_from:
+                    search_desc += f" from {date_from}"
+                elif date_to:
+                    search_desc += f" up to {date_to}"
+
+            if not payments:
+                return f"[!] No customer payments found for {search_desc}"
+
+            # Format output
+            output = [f"[OK] Found {len(payments)} customer payment(s) for {search_desc}"]
+            output.append("=" * 60)
+
+            for i, payment in enumerate(payments, 1):
+                output.append(f"\n{i}. Payment #{payment.get('ref_number', 'N/A')} - {payment.get('txn_date', 'N/A')}")
+                output.append(f"   Customer: {payment.get('customer_name', 'N/A')}")
+                output.append(f"   Amount: ${payment.get('amount', 0):.2f}")
+                if payment.get('payment_method'):
+                    output.append(f"   Method: {payment.get('payment_method')}")
+                if payment.get('check_number'):
+                    output.append(f"   Check #: {payment.get('check_number')}")
+                if payment.get('deposit_account'):
+                    output.append(f"   Deposit To: {payment.get('deposit_account')}")
+                if payment.get('memo'):
+                    output.append(f"   Memo: {payment.get('memo')}")
+                output.append(f"   Transaction ID: {payment.get('txn_id', 'N/A')}")
+
+            return "\n".join(output)
+
+        except Exception as e:
+            logger.error(f"Search customer payments failed: {e}")
+            return f"[ERROR] {str(e)}"
+
     # Report Methods
     def get_job_profit(self, job_name: str, **kwargs) -> str:
         """Get job profitability report with vendor breakdown"""
@@ -1889,20 +2125,49 @@ class QBConnector:
 
         Args:
             amount: Amount to search for (required)
-            date_from: Start date MM-DD-YYYY or MM/DD/YYYY (optional)
-            date_to: End date MM-DD-YYYY or MM/DD/YYYY (optional)
+            date_from: Start date MM-DD-YYYY or MM/DD/YYYY (optional, defaults to current quarter start)
+            date_to: End date MM-DD-YYYY or MM/DD/YYYY (optional, defaults to current quarter end)
             tolerance: Amount tolerance for matching (default 0.01)
 
         Returns:
             All transactions matching the amount across checks, bills, invoices, deposits, etc.
         """
         try:
-            logger.info(f"Searching all transactions for amount ${amount:.2f}")
+            # Default to current quarter if no dates provided
+            from datetime import datetime, date
+
+            if not kwargs.get('date_from') or not kwargs.get('date_to'):
+                today = date.today()
+                current_month = today.month
+                current_year = today.year
+
+                # Determine quarter
+                if current_month <= 3:  # Q1: Jan-Mar
+                    default_from = f"01-01-{current_year}"
+                    default_to = f"03-31-{current_year}"
+                elif current_month <= 6:  # Q2: Apr-Jun
+                    default_from = f"04-01-{current_year}"
+                    default_to = f"06-30-{current_year}"
+                elif current_month <= 9:  # Q3: Jul-Sep
+                    default_from = f"07-01-{current_year}"
+                    default_to = f"09-30-{current_year}"
+                else:  # Q4: Oct-Dec
+                    default_from = f"10-01-{current_year}"
+                    default_to = f"12-31-{current_year}"
+
+                date_from = kwargs.get('date_from', default_from)
+                date_to = kwargs.get('date_to', default_to)
+
+                logger.info(f"Searching all transactions for amount ${amount:.2f} (Quarter: {date_from} to {date_to})")
+            else:
+                date_from = kwargs.get('date_from')
+                date_to = kwargs.get('date_to')
+                logger.info(f"Searching all transactions for amount ${amount:.2f}")
 
             result = self.transaction_search.search_by_amount(
                 amount=amount,
-                date_from=kwargs.get('date_from'),
-                date_to=kwargs.get('date_to'),
+                date_from=date_from,
+                date_to=date_to,
                 tolerance=kwargs.get('tolerance', 0.01)
             )
 
@@ -1913,10 +2178,10 @@ class QBConnector:
 
             if not transactions:
                 output = f"[!] No transactions found for amount ${amount:.2f}"
-                if kwargs.get('date_from') or kwargs.get('date_to'):
-                    output += f"\n  Date range: {kwargs.get('date_from', 'any')} to {kwargs.get('date_to', 'any')}"
+                output += f"\n  Date range: {date_from} to {date_to}"
             else:
                 output = f"[OK] Found {len(transactions)} transaction(s) for ${amount:.2f}\n"
+                output += f"  Date range: {date_from} to {date_to}\n"
                 output += "=" * 50 + "\n"
 
                 for i, txn in enumerate(transactions, 1):

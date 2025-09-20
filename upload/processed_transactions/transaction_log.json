@@ -1,0 +1,21 @@
+{
+  "transactions": [
+    {
+      "processed_date": "2025-09-16",
+      "vendor": "Precision Interior Producs, LLC",
+      "receipt_number": "203537",
+      "amount": 37.32,
+      "quickbooks_type": "Check",
+      "quickbooks_id": "51C55-1758018776",
+      "check_number": "6664",
+      "job_customer": "jeck:Jeff trailer",
+      "item": "job materials",
+      "bank_account": "3245 for 6664 card",
+      "source_files": [
+        "pip_receipt.jpg",
+        "payment_slip.jpg"
+      ],
+      "processing_notes": "Processed from OneDrive Inbox. Line items stored in metadata file."
+    }
+  ]
+}

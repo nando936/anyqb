@@ -1,0 +1,183 @@
+VENDOR MATCHING WITH QUICKBOOKS
+================================
+
+PURPOSE
+-------
+Match vendor names from documents to existing QuickBooks vendors using fuzzy matching.
+Avoid creating duplicate vendors with slight name variations.
+
+MATCHING PROCESS
+----------------
+
+Step 1: Extract Vendor Name from Document
+- Look for business name on receipt/invoice
+- Common locations:
+  * Top of receipt (logo area)
+  * "Pay to" field
+  * Return address
+  * Footer information
+
+Step 2: Search QuickBooks
+Use QBConnector to search:
+```
+python qbc.py SEARCH_VENDORS search_term=[extracted_name]
+```
+
+Step 3: Evaluate Matches
+- 90-100% match: Use without asking
+- 80-89% match: Ask user to confirm
+- Below 80%: Show options or create new
+
+FUZZY MATCHING EXAMPLES
+------------------------
+
+Document Says -> Search For -> Likely QB Match
+------------------------------------------------
+"HD" -> "depot" -> "The Home Depot"
+"PIP" -> "pip" or "precision" -> "Precision Interior Producs, LLC"
+"Lowes" -> "lowe" -> "Lowe's"
+"Chase" -> "chase" -> "Chase Bank" or "JPMorgan Chase"
+
+COMMON VARIATIONS
+-----------------
+
+Handle These Automatically:
+- "The" prefix (The Home Depot = Home Depot)
+- Apostrophes (Lowe's = Lowes)
+- LLC/Inc/Corp suffixes
+- Typos in QB (Producs = Products)
+- Abbreviations (HD = Home Depot)
+
+VENDOR ALIASES
+--------------
+
+Create mapping file for common aliases:
+```json
+{
+  "HD": "The Home Depot",
+  "PIP": "Precision Interior Producs, LLC",
+  "WM": "Walmart",
+  "AMZ": "Amazon"
+}
+```
+
+SEARCH STRATEGY
+---------------
+
+1. Try exact match first
+2. Try without punctuation
+3. Try first word only
+4. Try last word only
+5. Try initials/abbreviation
+6. Try without LLC/Inc/Corp
+
+Example for "Precision Interior Products LLC":
+- Search: "Precision Interior Products LLC"
+- Search: "Precision Interior Products"
+- Search: "Precision Interior"
+- Search: "Precision"
+- Search: "PIP"
+
+HANDLING MULTIPLE MATCHES
+-------------------------
+
+If search returns multiple vendors:
+```
+Found 3 vendors matching "precision":
+1. Precision Interior Producs, LLC
+2. Precision Automotive
+3. Precision Tools Inc
+
+Which vendor is this receipt from? [1-3 or N for new]
+```
+
+CREATING NEW VENDORS
+---------------------
+
+Only create new if:
+1. No matches found above 50%
+2. User confirms it's a new vendor
+3. Not a typo of existing vendor
+
+Ask user:
+```
+No vendor found matching "ABC Supply".
+Options:
+1. Create new vendor "ABC Supply"
+2. Search again with different term
+3. Show all vendors
+```
+
+VENDOR NAME STANDARDIZATION
+----------------------------
+
+When creating new vendors:
+- Use full legal name if available
+- Include LLC/Inc/Corp from documents
+- Don't duplicate "The" (not "The The Home Depot")
+- Capitalize properly
+
+LEARNING FROM MATCHES
+----------------------
+
+Save successful matches:
+```json
+{
+  "document_text": "PIP",
+  "quickbooks_vendor": "Precision Interior Producs, LLC",
+  "confidence": 90,
+  "date_matched": "2025-01-15"
+}
+```
+
+Use for future automatic matching.
+
+SPECIAL CASES
+-------------
+
+Individuals as Vendors:
+- "Adrian Carpenter" -> Search "Adrian"
+- "John Smith Plumbing" -> Search "Smith"
+
+Credit Card Statements:
+- Multiple vendors on one statement
+- Extract individual vendor names
+- Match each separately
+
+Online Vendors:
+- Amazon -> "Amazon.com"
+- eBay -> "eBay Inc"
+- PayPal -> "PayPal Inc"
+
+CHAIN STORES
+------------
+
+Recognize store numbers:
+- "Home Depot #0578" -> "The Home Depot"
+- "Walmart Store 1234" -> "Walmart"
+- "Lowes #0434" -> "Lowe's"
+
+VENDOR VERIFICATION
+-------------------
+
+Before using matched vendor, verify:
+- Address reasonable match?
+- Phone number matches?
+- Business type matches purchase?
+
+If suspicious:
+- Ask user to confirm
+- Note any discrepancies
+
+ERROR PREVENTION
+----------------
+
+Never:
+- Create vendor without user confirmation
+- Use wrong vendor due to bad match
+- Create duplicate with slight variation
+
+Always:
+- Search QB before creating new
+- Show user what was found
+- Confirm vendor selection for transactions

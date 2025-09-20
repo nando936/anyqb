@@ -1,0 +1,249 @@
+PAYMENT METHOD IDENTIFICATION RULES
+====================================
+
+CRITICAL: Correctly identify payment method from documents to set proper check_number
+parameter in PAY_BILLS command. This ensures QuickBooks tracking matches reality.
+
+VENDOR-SPECIFIC PAYMENT METHODS
+--------------------------------
+These vendors have standard payment methods that should be auto-applied:
+
+JACIEL:
+- Primary method: ATM withdrawals
+- Check_number: "ATM"
+- Also accepts: Cash (use "ATM")
+- Rarely: Actual checks (use real check number)
+
+ADRIAN:
+- Primary method: Zelle transfers
+- Check_number: "Zelle"
+- Also accepts: Bank transfers (use "Zelle")
+- Rarely: Checks (use real check number)
+
+ELMER:
+- Primary method: Zelle transfers
+- Check_number: "Zelle"
+- Also accepts: Bank transfers (use "Zelle")
+
+SELVIN:
+- Primary method: Zelle transfers
+- Check_number: "Zelle"
+- Also accepts: Bank transfers (use "Zelle")
+
+BRYAN:
+- Primary method: Zelle transfers
+- Check_number: "Zelle"
+- Also accepts: Bank transfers (use "Zelle")
+
+OTHER VENDORS:
+- Check document for actual method
+- Use real check numbers when available
+- Default to "Check" if unclear
+
+DOCUMENT TYPE RECOGNITION
+-------------------------
+
+ATM WITHDRAWAL RECEIPTS:
+Identifying features:
+- "ATM" or "Withdrawal" in header
+- Transaction type: "Fast Cash" or "Withdrawal"
+- Location/ATM ID shown
+- No recipient name (just amount)
+
+What to extract:
+- Date and time of withdrawal
+- Amount (exact)
+- ATM location (optional)
+- Set check_number="ATM"
+
+ZELLE TRANSFER CONFIRMATIONS:
+Identifying features:
+- "Zelle" logo or text
+- "Sent Money" or "Payment Sent"
+- Recipient name shown
+- Confirmation number
+
+What to extract:
+- Transfer date
+- Recipient name (must match vendor)
+- Amount sent
+- Confirmation # (save in memo)
+- Set check_number="Zelle"
+
+CHECK IMAGES:
+Identifying features:
+- Standard check format
+- Check number (top right)
+- "Pay to the order of" line
+- Signature line
+- Bank routing numbers at bottom
+
+What to extract:
+- Check number (CRITICAL)
+- Date on check
+- Payee name
+- Amount (written and numeric)
+- Memo line (if filled)
+- Set check_number="[actual_number]"
+
+BANK STATEMENTS:
+Identifying features:
+- List of transactions
+- Dates and amounts
+- Transaction descriptions
+- Balance information
+
+What to extract:
+- Transaction date
+- Amount
+- Description (contains payment type)
+- Check number if shown
+- Identify if Zelle, wire, or check
+
+CASH RECEIPTS:
+Identifying features:
+- "Cash Payment" or "Paid in Cash"
+- May be handwritten
+- Signed/initialed
+- No bank information
+
+What to extract:
+- Date of payment
+- Amount
+- Recipient/vendor name
+- Set check_number="Cash" or "ATM"
+
+EXTRACTION TECHNIQUES
+---------------------
+
+FOR POOR QUALITY IMAGES:
+1. Use AI vision first (most effective)
+2. Enhance contrast if needed
+3. Check multiple areas for payment method
+4. Look for partial text matches
+
+FOR CHECK NUMBERS:
+- Top right corner (most common)
+- Bottom left (on check carbon)
+- May be handwritten
+- May be pre-printed
+- Format: Usually 3-4 digits
+
+FOR DATES:
+- Checks: Upper right area
+- ATM: Transaction header
+- Zelle: Confirmation timestamp
+- Statements: Transaction line
+
+FOR AMOUNTS:
+- Numeric amount (easier to read)
+- Written amount (for verification)
+- Must match if both present
+- Use numeric if conflict
+
+PAYMENT METHOD DECISION TREE
+-----------------------------
+START
+│
+├─ Is this an ATM receipt?
+│  └─ YES → check_number="ATM"
+│
+├─ Is this a Zelle confirmation?
+│  └─ YES → check_number="Zelle"
+│
+├─ Is this a check image?
+│  ├─ YES → Can read check number?
+│  │  ├─ YES → check_number="[number]"
+│  │  └─ NO → Try harder, ask user
+│  └─ NO → Continue
+│
+├─ Is this a bank statement?
+│  ├─ Shows "Zelle" → check_number="Zelle"
+│  ├─ Shows check # → check_number="[number]"
+│  ├─ Shows "ATM" → check_number="ATM"
+│  └─ Unclear → Check vendor default
+│
+├─ Is this a cash receipt?
+│  └─ YES → Check vendor
+│     ├─ Jaciel → check_number="ATM"
+│     └─ Others → check_number="Cash"
+│
+└─ UNKNOWN → Check vendor defaults
+    ├─ Jaciel → "ATM"
+    ├─ Adrian/Elmer/Selvin/Bryan → "Zelle"
+    └─ Others → Ask user
+
+VALIDATION RULES
+----------------
+Before setting check_number:
+
+1. VENDOR MATCH:
+   - Payment method should match vendor pattern
+   - Jaciel + Zelle = Unusual (verify)
+   - Adrian + ATM = Unusual (verify)
+
+2. AMOUNT MATCH:
+   - ATM withdrawals often round numbers ($600, $650)
+   - Zelle can be exact amounts ($647.50)
+   - Checks usually match bill exactly
+
+3. DATE LOGIC:
+   - ATM: Usually same day as work week ends
+   - Zelle: Can be any day
+   - Checks: Often dated Friday/Saturday
+
+SPECIAL CASES
+-------------
+
+MULTIPLE PAYMENTS SAME DAY:
+- Different vendors might be paid same day
+- Check recipient name carefully
+- Don't assume one payment for all
+
+PARTIAL PAYMENTS:
+- May use different method than usual
+- Document method clearly
+- Note if advance or partial
+
+COMBINED METHODS:
+- Part ATM, part Zelle (rare)
+- Document both methods
+- Create separate payments
+
+THIRD-PARTY PAYMENTS:
+- Someone else pays on behalf
+- Note actual payer
+- Use actual payment method
+
+ERROR PREVENTION
+----------------
+
+NEVER:
+- Assume payment method without checking
+- Use "Check" for ATM/Zelle payments
+- Leave check_number blank
+- Guess check number if unclear
+
+ALWAYS:
+- Read payment document carefully
+- Match vendor to expected method
+- Extract actual check numbers
+- Verify unusual combinations
+- Ask user if uncertain
+
+COMMON MISTAKES TO AVOID
+------------------------
+1. Confusing ATM location with check number
+2. Using confirmation # as check number
+3. Missing Zelle in bank statement description
+4. Not recognizing cash payments
+5. Assuming all payments are checks
+
+FINAL VALIDATION
+----------------
+Before PAY_BILLS command:
+☐ Payment method identified from document
+☐ Check_number parameter set correctly
+☐ Vendor's usual method considered
+☐ Unusual methods verified
+☐ Real check numbers extracted (not guessed)

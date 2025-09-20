@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="13.0"?>
+<QBXML>
+    <QBXMLMsgsRq onError="stopOnError">
+        <ItemReceiptAddRq requestID="1">
+            <ItemReceiptAdd>
+                <VendorRef>
+                    <FullName>TEST_VENDOR_RECEIPT</FullName>
+                </VendorRef>
+                <TxnDate>2025-09-14</TxnDate>
+                <RefNumber>Receipt-269070</RefNumber>
+                <Memo>Receipt for PO #269070</Memo>
+                
+                <ItemReceiptLineAdd>
+                    <ItemRef>
+                        <FullName>job materials</FullName>
+                    </ItemRef>
+                    <Quantity>25</Quantity>
+                    <LinkToTxn>
+                        <TxnID>51B38-1757505854</TxnID>
+                        <TxnLineID>51B3A-1757505854</TxnLineID>
+                    </LinkToTxn>
+                </ItemReceiptLineAdd>
+            </ItemReceiptAdd>
+        </ItemReceiptAddRq>
+    </QBXMLMsgsRq>
+</QBXML>

@@ -1,0 +1,23 @@
+{
+  "transaction_date": "01-15-2025",
+  "vendor": "Precision Interior Producs, LLC",
+  "receipt_number": "203537",
+  "total_amount": 37.32,
+  "payment_method": "Debit Card 6664",
+  "bank_account": "3245 for 6664 card",
+  "job_customer": "jeck:Jeff trailer",
+  "quickbooks_item": "job materials",
+  "quickbooks_check_id": "51C55-1758018776",
+  "line_items": [
+    {
+      "description": "Wood products",
+      "category": "Building materials",
+      "notes": "PIP Receipt 203537"
+    }
+  ],
+  "processing_date": "2025-01-16",
+  "source_files": [
+    "pip_receipt.jpg",
+    "payment_slip.jpg"
+  ]
+}

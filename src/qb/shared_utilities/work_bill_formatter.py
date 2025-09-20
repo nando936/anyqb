@@ -418,11 +418,16 @@ class WorkBillFormatter:
             lines.append("")
             lines.append(f" Balance: ${remaining_balance:.2f}")
         else:
-            # Unpaid
-            lines.append(f" Status: [UNPAID]")
+            # Check if there are actually payments even though IsPaid is False
+            if amount_paid > 0 and remaining_balance < 0.01:
+                # Has payments that fully cover the bill
+                lines.append(f" Status: [PAID]")
+            else:
+                # Truly unpaid
+                lines.append(f" Status: [UNPAID]")
             lines.append(f" Bill Total: ${bill_total:.2f}")
             lines.append("")
-            lines.append(f" Balance: ${bill_total:.2f}")
+            lines.append(f" Balance: ${remaining_balance:.2f}")  # Use calculated balance, not bill_total
         
         # Validation messages if any
         validation = bill_data.get('validation', {})

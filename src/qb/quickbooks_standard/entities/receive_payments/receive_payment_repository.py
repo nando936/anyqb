@@ -201,13 +201,75 @@ class ReceivePaymentRepository:
             logger.error(f"Failed to get payment {txn_id}: {e}")
             return None
     
+    def get_all_payments(self, date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[Dict]:
+        """
+        Get all customer payments with optional date filtering
+
+        Args:
+            date_from: Start date (optional) in format YYYY-MM-DD
+            date_to: End date (optional) in format YYYY-MM-DD
+
+        Returns:
+            List of all payment details
+        """
+        try:
+            if not self.connection.connect():
+                logger.error("Failed to connect to QuickBooks")
+                return []
+
+            request_set = self.connection.create_request_set()
+            payment_query = request_set.AppendReceivePaymentQueryRq()
+
+            # Add date filter if provided
+            if date_from or date_to:
+                import pywintypes
+                from datetime import datetime
+
+                date_filter = payment_query.ORTxnQuery.TxnFilter.ORDateRangeFilter.TxnDateRangeFilter.ORTxnDateRangeFilter.TxnDateFilter
+
+                if date_from:
+                    # Parse the date string
+                    dt_from = datetime.strptime(date_from, '%Y-%m-%d') if '-' in date_from else datetime.strptime(date_from, '%m/%d/%Y')
+                    date_filter.FromTxnDate.SetValue(pywintypes.Time(dt_from))
+
+                if date_to:
+                    # Parse the date string
+                    dt_to = datetime.strptime(date_to, '%Y-%m-%d') if '-' in date_to and date_to.count('-') == 2 else datetime.strptime(date_to, '%m/%d/%Y')
+                    date_filter.ToTxnDate.SetValue(pywintypes.Time(dt_to))
+
+            # Include line items for details
+            payment_query.IncludeLineItems.SetValue(True)
+
+            response_set = self.connection.process_request_set(request_set)
+            response = response_set.ResponseList.GetAt(0)
+
+            if response.StatusCode != 0:
+                logger.error(f"Query failed: {response.StatusMessage}")
+                return []
+
+            if not response.Detail:
+                return []
+
+            payments = []
+            for i in range(response.Detail.Count):
+                payment_ret = response.Detail.GetAt(i)
+                payment_data = self._parse_payment(payment_ret)
+                if payment_data:
+                    payments.append(payment_data)
+
+            return payments
+
+        except Exception as e:
+            logger.error(f"Failed to get all payments: {e}")
+            return []
+
     def find_payments_by_customer(self, customer_name: str) -> List[Dict]:
         """
         Find all payments for a customer
-        
+
         Args:
             customer_name: Name of the customer
-        
+
         Returns:
             List of payment details
         """
@@ -319,41 +381,132 @@ class ReceivePaymentRepository:
     def delete_payment(self, txn_id: str) -> bool:
         """
         Delete a payment from QuickBooks
-        
+        Tries both QBXML and QBFC methods, then unapplies if needed
+
         Args:
             txn_id: Transaction ID of the payment to delete
-        
+
         Returns:
             True if successful, False otherwise
         """
         try:
-            # Get existing payment first for edit sequence
-            existing = self.get_payment(txn_id)
-            if not existing:
-                logger.error(f"Payment {txn_id} not found for deletion")
-                return False
-            
+            # Try QBXML method first (often more reliable for deletes)
+            logger.info(f"Attempting to delete payment {txn_id} using QBXML...")
+
+            from shared_utilities.xml_qb_connection import XMLQBConnection
+            xml_conn = XMLQBConnection()
+
+            if xml_conn.connect():
+                try:
+                    # Build QBXML delete request
+                    qbxml = f'''<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="13.0"?>
+<QBXML>
+  <QBXMLMsgsRq onError="stopOnError">
+    <TxnDelRq>
+      <TxnDelType>ReceivePayment</TxnDelType>
+      <TxnID>{txn_id}</TxnID>
+    </TxnDelRq>
+  </QBXMLMsgsRq>
+</QBXML>'''
+
+                    # Process the XML request
+                    response_xml = xml_conn.process_request(qbxml)
+
+                    # Parse response
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(response_xml)
+
+                    # Check for success
+                    status_code = root.find('.//TxnDelRs')
+                    if status_code is not None:
+                        status_attr = status_code.get('statusCode', '99')
+                        if status_attr == '0':
+                            logger.info(f"Successfully deleted payment {txn_id} using QBXML")
+                            return True
+                        else:
+                            status_msg = status_code.get('statusMessage', 'Unknown error')
+                            logger.debug(f"QBXML delete failed: {status_msg}")
+
+                except Exception as e:
+                    logger.debug(f"QBXML delete attempt failed: {e}")
+                finally:
+                    xml_conn.disconnect()
+
+            # Fall back to QBFC method
             if not self.connection.connect():
-                logger.error("Failed to connect to QuickBooks")
+                logger.error("Failed to connect to QuickBooks via QBFC")
                 return False
-            
+
+            logger.info(f"Attempting to delete payment {txn_id} using QBFC...")
             request_set = self.connection.create_request_set()
-            
-            # Create delete request
             delete_req = request_set.AppendTxnDelRq()
-            delete_req.TxnDelType.SetValue(18)  # ReceivePayment type
+
+            # CRITICAL: Use SetAsString for TxnDelType - NOT SetValue!
+            # This was the solution for bill deletion and should work for ReceivePayment too
+            delete_req.TxnDelType.SetAsString("ReceivePayment")  # Must use string value!
             delete_req.TxnID.SetValue(txn_id)
-            
-            # Process the request
+
+            # Process the delete request
             response_set = self.connection.process_request_set(request_set)
             response = response_set.ResponseList.GetAt(0)
-            
-            if response.StatusCode != 0:
-                logger.error(f"Failed to delete payment: {response.StatusMessage}")
-                return False
-            
-            logger.info(f"Successfully deleted payment {txn_id}")
-            return True
+
+            if response.StatusCode == 0:
+                logger.info(f"Successfully deleted payment {txn_id}")
+                return True
+
+            # If failed due to being locked/applied or not found, try unapplying first
+            error_msg = str(response.StatusMessage) if hasattr(response, 'StatusMessage') else ""
+            if "locked" in error_msg.lower() or "in use" in error_msg.lower() or "not found" in error_msg.lower() or "invalid record" in error_msg.lower():
+                logger.info(f"Payment is locked/applied. Attempting to unapply first...")
+
+                # Get the payment to see what it's applied to
+                payment = self.get_payment(txn_id)
+                if payment and payment.get('applied_to_txns'):
+                    logger.info(f"Payment is applied to {len(payment['applied_to_txns'])} invoice(s). Unapplying...")
+
+                    # Unapply the payment from all invoices
+                    request_set = self.connection.create_request_set()
+                    payment_mod = request_set.AppendReceivePaymentModRq()
+
+                    # Set the payment transaction ID and edit sequence
+                    payment_mod.TxnID.SetValue(txn_id)
+                    payment_mod.EditSequence.SetValue(payment['edit_sequence'])
+
+                    # Unapply from each invoice by setting amount to 0
+                    for applied_txn in payment['applied_to_txns']:
+                        if applied_txn.get('txn_id'):
+                            applied_mod = payment_mod.AppliedToTxnModList.Append()
+                            applied_mod.TxnID.SetValue(applied_txn['txn_id'])
+                            applied_mod.PaymentAmount.SetValue(0.00)
+
+                    # Process the unapply request
+                    response_set = self.connection.process_request_set(request_set)
+                    response = response_set.ResponseList.GetAt(0)
+
+                    if response.StatusCode != 0:
+                        logger.error(f"Failed to unapply payment: {response.StatusMessage}")
+                        return False
+
+                    logger.info(f"Successfully unapplied payment from invoices")
+
+                    # Now try to delete again
+                    request_set = self.connection.create_request_set()
+                    delete_req = request_set.AppendTxnDelRq()
+
+                    # CRITICAL: Use SetAsString for TxnDelType
+                    delete_req.TxnDelType.SetAsString("ReceivePayment")
+                    delete_req.TxnID.SetValue(txn_id)
+
+                    response_set = self.connection.process_request_set(request_set)
+                    response = response_set.ResponseList.GetAt(0)
+
+                    if response.StatusCode == 0:
+                        logger.info(f"Successfully deleted payment {txn_id} after unapplying")
+                        return True
+
+            logger.error(f"Failed to delete payment: {error_msg}")
+            return False
             
         except Exception as e:
             logger.error(f"Failed to delete payment {txn_id}: {e}")

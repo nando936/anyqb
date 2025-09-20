@@ -1,0 +1,32 @@
+{
+  "vendor": "Office Depot",
+  "date": "07/31/2025",
+  "time": "1:42 PM",
+  "total": 38.09,
+  "subtotal": 35.19,
+  "tax": 2.90,
+  "payment": {
+    "method": "Debit Card",
+    "last_4": "8631",
+    "auth_code": "134230",
+    "account": "3841 for 8631card"
+  },
+  "line_items": [
+    {
+      "sku": "523914",
+      "description": "INK,HP 61,BLAC",
+      "price": 35.19,
+      "quantity": 1,
+      "category": "Office Supplies",
+      "quickbooks_item": "printer ink 61xl black"
+    }
+  ],
+  "quickbooks_transaction": {
+    "type": "CHECK",
+    "id": "51C5E-1758045437",
+    "check_number": "8631",
+    "payee": "OFFICE",
+    "memo": "HP 61 Black Ink - 07/31/2025"
+  },
+  "notes": "Overhead expense - no job assignment"
+}

@@ -1,0 +1,181 @@
+LINE ITEM EXTRACTION INSTRUCTIONS
+==================================
+
+OVERVIEW
+--------
+All vendor documents (receipts, invoices) must have COMPLETE line item details extracted.
+This provides audit trail, searchability, and cost analysis capabilities.
+
+WHAT TO EXTRACT
+---------------
+For EACH line item on document:
+
+Required Fields:
+- Line number (order on receipt)
+- Item code/SKU (if present)
+- Description (full product name)
+- Quantity
+- Unit price
+- Total price (qty x unit)
+
+Optional Fields:
+- Department/Category
+- Discount applied
+- Tax status (T = taxable)
+- Return policy code
+- Vendor item number
+- UPC/Barcode
+
+EXTRACTION EXAMPLES
+-------------------
+Home Depot Receipt:
+Line 1:
+  SKU: 1001234567
+  Description: 2X4X8 STUD LUMBER
+  Qty: 10
+  Unit: $4.98
+  Total: $49.80
+  Dept: LUMBER
+
+Line 2:
+  SKU: 3021234567
+  Description: DECK SCREWS 3" 1LB
+  Qty: 2
+  Unit: $8.97
+  Total: $17.94
+  Dept: HARDWARE
+
+STORAGE FORMAT - JSON
+---------------------
+File name: [receipt_name]_items.json
+
+{
+  "extraction_date": "2025-01-15",
+  "document": "01-15-2025_homedepot_receipt_4567_125.43.jpg",
+  "vendor": "Home Depot",
+  "store": "#0123",
+  "transaction_number": "4567",
+  "items": [
+    {
+      "line": 1,
+      "sku": "1001234567",
+      "description": "2X4X8 STUD LUMBER",
+      "quantity": 10,
+      "unit_price": 4.98,
+      "total": 49.80,
+      "department": "LUMBER",
+      "taxable": true
+    },
+    {
+      "line": 2,
+      "sku": "3021234567",
+      "description": "DECK SCREWS 3\" 1LB",
+      "quantity": 2,
+      "unit_price": 8.97,
+      "total": 17.94,
+      "department": "HARDWARE",
+      "taxable": true
+    }
+  ],
+  "subtotal": 67.74,
+  "tax": 5.42,
+  "total": 73.16,
+  "payment_method": "CHECK",
+  "check_number": "1234"
+}
+
+QUICKBOOKS POSTING OPTIONS
+---------------------------
+Option 1: SINGLE LINE ITEM (Simple)
+- Post as one QB item
+- Put summary in memo
+- Attach metadata file
+
+Example QB Entry:
+Item: Construction Materials
+Amount: $73.16
+Memo: "HD #0123 Receipt 4567 - Lumber(10), Hardware(2) - See attached"
+
+Option 2: GROUPED BY CATEGORY (Better)
+- Group by department/category
+- Create line for each group
+- Detailed memo per line
+
+Example QB Entry:
+Line 1: Lumber - $49.80
+  Memo: "2x4x8 Stud (10)"
+Line 2: Hardware - $17.94
+  Memo: "Deck Screws 3\" (2)"
+
+Option 3: FULL DETAIL (Most Accurate)
+- Each receipt line = QB line
+- Complete description
+- Preserves full detail
+
+Example QB Entry:
+Line 1: 2X4X8 STUD LUMBER - Qty: 10 - $49.80
+Line 2: DECK SCREWS 3" 1LB - Qty: 2 - $17.94
+
+USER PREFERENCE SETTING
+------------------------
+First time processing, ask:
+"How detailed should QuickBooks entries be?"
+1. Simple - One line per receipt (fastest)
+2. Grouped - By category (balanced)
+3. Detailed - Every item (most accurate)
+
+Save preference per vendor or globally.
+
+SPECIAL CASES
+-------------
+Services/Labor:
+- May not have SKU
+- Use service description
+- Note hours if applicable
+
+Discounts:
+- Show as negative line
+- Link to original item
+- Preserve discount reason
+
+Returns/Credits:
+- Negative quantities
+- Reference original receipt
+- Note return reason
+
+Special Orders:
+- May span multiple receipts
+- Track order number
+- Link related documents
+
+SEARCHABILITY
+-------------
+Metadata files enable:
+- "Find all lumber purchases"
+- "Total spent on screws in January"
+- "Which receipt had item SKU 1234567"
+- "All Home Depot purchases over $100"
+
+VALIDATION
+----------
+- Sum of line items = subtotal
+- Tax calculation correct
+- No missing lines
+- Quantities reasonable
+- Prices match current ranges
+
+ERROR HANDLING
+--------------
+If OCR fails on items:
+- Try enhancing image
+- Ask user for problem lines
+- Note "partially extracted"
+- Flag for manual review
+
+REPORTING
+---------
+Monthly summaries from metadata:
+- Top purchased items
+- Spending by category
+- Vendor comparisons
+- Price trend analysis

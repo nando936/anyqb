@@ -1,0 +1,153 @@
+LOWES PROCESSING INSTRUCTIONS
+==============================
+
+VENDOR INFORMATION
+------------------
+QuickBooks Name: Lowe's
+Default Account: Construction Materials
+Default Class: Jobs
+Payment Terms: Net 30
+
+IDENTIFICATION PATTERNS
+-----------------------
+Logo/Text Markers:
+- "LOWE'S"
+- "Lowes"
+- "lowes.com"
+- "LOWE'S HOME IMPROVEMENT"
+
+Store Numbers:
+- Format: "Store #XXXX"
+- Format: 4-digit number
+- Common: #0434, #1789, #2567
+
+Phone Patterns:
+- 1-800-44-LOWES
+- 1-800-445-6937
+
+DOCUMENT FORMATS
+----------------
+Receipt Format:
+- Header: Lowe's logo, store location
+- Date/time below store info
+- Items with item numbers
+- MyLowes card number (if used)
+- Footer: Subtotal, Tax, Total
+
+Invoice Format:
+- Pro/Commercial accounts
+- Quote numbers
+- Delivery information
+
+EXTRACTION RULES
+----------------
+Date:
+- Location: Below store address
+- Format: MM/DD/YYYY HH:MM:SS
+- Label: Sometimes preceded by "Date:"
+
+Amount:
+- Look for: "TOTAL", "BALANCE DUE"
+- Position: Last monetary value
+- Bold or larger font
+
+Tax:
+- Label: "TAX", "Sales Tax"
+- May be itemized by jurisdiction
+
+Reference Number:
+- Receipt: "Trans #" or "Transaction:"
+- Format: XXX-XXXXX-XXXXX
+- Invoice: "Invoice #"
+
+Cashier/Register:
+- Format: "Cashier: NAME" "Reg: XX"
+- Include in notes
+
+ITEM CATEGORIZATION
+--------------------
+Common Categories:
+- Building Materials -> Construction Materials
+- Paint -> Paint & Supplies
+- Tools -> Tools & Equipment
+- Garden -> Landscaping Supplies
+- Appliances -> Equipment
+- Flooring -> Flooring Materials
+
+QUICKBOOKS POSTING
+-------------------
+Transaction Rules:
+- Under $75: Post as Check
+- $75-$500: Create Bill
+- Over $500: Create Bill with manager approval
+
+Account Mapping:
+- Default: Construction Materials
+- Garden items: Landscaping
+- Appliances: Equipment
+- Installation: Subcontractors
+
+Memo Format:
+"Lowes Store #[store] Trans #[trans] [date]"
+
+CLASS ASSIGNMENT
+----------------
+- Check for MyLowes Pro job tracking
+- Default: Current Active Job
+- Split transactions by department
+
+SPECIAL HANDLING
+----------------
+MyLowes Pro Account:
+- Volume pricing
+- 5% discount tracking
+- Bid room purchases
+
+Returns:
+- Negative line items
+- "RETURN" or "REFUND" label
+- Create Credit Memo in QB
+
+Special Orders:
+- "SPO" designation
+- May require deposit
+- Track against PO
+
+Delivery:
+- Delivery fees separate line
+- Post to Delivery Expense
+
+COMMON ISSUES
+-------------
+- MyLowes card number privacy
+- Military discount adjustments
+- Price match adjustments
+- Multiple payment methods
+
+VALIDATION
+----------
+- Store number within valid range
+- Tax calculation correct for jurisdiction
+- Date within business hours
+- Pro discount applied correctly
+
+LOYALTY PROGRAM
+---------------
+MyLowes Pro:
+- Track member number
+- 5% off eligibility
+- Volume purchase history
+
+PRICE MATCHING
+--------------
+- Note "Price Match" adjustments
+- Include competitor info in notes
+- Affects margin calculations
+
+FILE NAMING
+-----------
+Use standard format: MM-DD-YYYY_lowes_[type]_[number]_[amount].[ext]
+Examples:
+- Receipt: 01-15-2025_lowes_receipt_7890_156.78.jpg
+- Invoice: 01-15-2025_lowes_invoice_5432_890.12.pdf
+- Payment: 01-15-2025_lowes_check_2345_156.78.jpg

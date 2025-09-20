@@ -88,9 +88,17 @@ class WorkWeekSummaryFormatter:
             lines.append(f"{item_line}{' ' * spaces}{amount_str}")
 
             # Job breakdown for this item
-            for job in sorted(idata['jobs'].keys()):
+            # Sort job keys, handling None values
+            job_keys = list(idata['jobs'].keys())
+            none_keys = [k for k in job_keys if k is None]
+            other_keys = sorted([k for k in job_keys if k is not None])
+            sorted_job_keys = other_keys + none_keys
+
+            for job in sorted_job_keys:
                 job_amount = idata['jobs'][job]
-                job_line = f"  {job[:28]}"
+                # Handle None job names
+                job_display = str(job) if job is not None else "(No job assigned)"
+                job_line = f"  {job_display[:28]}"
                 amount_str = f"${job_amount:,.2f}"
                 spaces = self.width - len(job_line) - len(amount_str)
                 lines.append(f"{job_line}{' ' * spaces}{amount_str}")
@@ -110,8 +118,18 @@ class WorkWeekSummaryFormatter:
         lines.append("JOB TOTALS:")
         lines.append(self.line_separator)
 
-        for job in sorted(job_totals.keys()):
-            job_line = job[:30]
+        # Sort job keys, handling None values
+        job_keys = list(job_totals.keys())
+        # Separate None from other keys
+        none_keys = [k for k in job_keys if k is None]
+        other_keys = sorted([k for k in job_keys if k is not None])
+        # Put None keys at the end
+        sorted_job_keys = other_keys + none_keys
+
+        for job in sorted_job_keys:
+            # Handle None job names
+            job_display = str(job) if job is not None else "(No job assigned)"
+            job_line = job_display[:30]
             amount_str = f"${job_totals[job]:,.2f}"
             spaces = self.width - len(job_line) - len(amount_str)
             lines.append(f"{job_line}{' ' * spaces}{amount_str}")

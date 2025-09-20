@@ -1,0 +1,209 @@
+PAYMENT TO WORK BILL MATCHING RULES
+====================================
+
+CRITICAL: These rules ensure payments are correctly matched to the right work bill.
+NEVER guess - when in doubt, ASK the user.
+
+MATCHING HIERARCHY
+------------------
+Match payments to bills using these criteria in order:
+
+1. EXACT REF_NUMBER MATCH (HIGHEST PRIORITY)
+   - If payment document shows bill ref (e.g., "ja_01/12-01/18/25")
+   - This is definitive - use this bill
+
+2. VENDOR + AMOUNT + DATE MATCH
+   - Vendor name matches exactly
+   - Payment amount equals bill amount (within $0.50)
+   - Payment date is within bill's week or shortly after
+
+3. VENDOR + AMOUNT MATCH
+   - Vendor name matches
+   - Amount matches
+   - Payment date is reasonable (within 30 days of bill)
+
+4. VENDOR + WEEK MATCH
+   - Vendor name matches
+   - Payment date falls within bill's week
+   - Amount is close but not exact (partial payment)
+
+VENDOR NAME MATCHING
+--------------------
+Handle variations in vendor names:
+
+EXACT MATCHES REQUIRED:
+- "Jaciel" = "Jaciel" (not "Jaciel Lopez")
+- "Adrian" = "Adrian" (not "Adrian Martinez")
+
+FUZZY MATCHING ALLOWED:
+- "Jaciel L" → "Jaciel"
+- "A. Martinez" → "Adrian"
+- Common nicknames and abbreviations
+
+When fuzzy matching:
+1. Show found match to user
+2. Confirm: "Is 'Jaciel L' the same as 'Jaciel'?"
+3. Proceed only with confirmation
+
+AMOUNT MATCHING RULES
+---------------------
+EXACT MATCH:
+- Payment amount = Bill amount
+- Tolerance: $0.50 (for rounding)
+
+CLOSE MATCH (requires confirmation):
+- Within $5.00 of bill amount
+- Show difference to user
+- Ask: "Payment is $645, bill is $650. Apply anyway?"
+
+PARTIAL PAYMENT:
+- Payment < Bill amount by more than $5
+- Requires explicit confirmation
+- Creates partial payment record
+
+OVERPAYMENT:
+- Payment > Bill amount
+- Requires explanation
+- May be advance for next week
+
+DATE MATCHING RULES
+-------------------
+ACCEPTABLE DATE RANGES:
+
+1. SAME WEEK PAYMENT:
+   - Payment date within bill's Monday-Sunday
+   - Most common for current week
+
+2. FOLLOWING WEEK PAYMENT:
+   - Payment date within 7 days after bill's Saturday
+   - Common for previous week's work
+
+3. DELAYED PAYMENT:
+   - Payment date 8-30 days after bill
+   - Requires verification
+   - Check if correct bill
+
+4. SUSPICIOUS DATES:
+   - Payment BEFORE bill's Monday
+   - Payment > 30 days after bill
+   - Flag for user review
+
+MULTIPLE BILL SCENARIOS
+------------------------
+When vendor has multiple open bills:
+
+1. LIST ALL OPEN BILLS:
+   Show in chronological order:
+   - Bill 1: ja_01/05-01/11/25 - $650.00 (2 weeks old)
+   - Bill 2: ja_01/12-01/18/25 - $650.00 (current week)
+
+2. APPLY MATCHING RULES:
+   - Check payment date proximity
+   - Check for ref_number on document
+   - Check memo/notes for week indication
+
+3. IF STILL AMBIGUOUS:
+   Present to user:
+   "Payment of $650 dated 01/15/25 could match:
+    1. Bill ja_01/05-01/11/25 (older)
+    2. Bill ja_01/12-01/18/25 (current)
+    Which bill should this payment apply to?"
+
+4. NEVER AUTO-SELECT:
+   - Don't assume "oldest first"
+   - Don't assume "current week"
+   - Always ask when unclear
+
+SPECIAL CASES
+-------------
+ATM WITHDRAWALS:
+- Often dated same day as withdrawal
+- May pay for previous week's work
+- Check withdrawal date vs bill dates
+
+ZELLE TRANSFERS:
+- Usually dated day of transfer
+- May have vendor name in memo
+- Check for week reference in description
+
+COMBINED PAYMENTS:
+- One payment for multiple bills
+- Rare but possible
+- Requires special handling
+
+CASH PAYMENTS:
+- Date might be unclear
+- Use receipt date if available
+- Otherwise ask user
+
+MATCHING DECISION TREE
+-----------------------
+START
+│
+├─ Does payment have ref_number?
+│  ├─ YES → Use that bill (MATCH FOUND)
+│  └─ NO → Continue
+│
+├─ Does vendor name match exactly?
+│  ├─ YES → Check amount
+│  └─ NO → Try fuzzy match
+│     ├─ Found match? → Confirm with user
+│     └─ No match → STOP (ask user)
+│
+├─ Does amount match bill?
+│  ├─ EXACT → Check date
+│  ├─ CLOSE (±$5) → Flag for confirmation
+│  └─ DIFFERENT → Check if partial payment
+│
+├─ Is payment date reasonable?
+│  ├─ Within week → High confidence match
+│  ├─ Within 30 days → Medium confidence
+│  └─ Outside 30 days → Low confidence (confirm)
+│
+├─ Multiple bills match criteria?
+│  ├─ YES → List all, ask user to select
+│  └─ NO → Proceed with single match
+│
+└─ FINAL: Confirm match with user if any doubt
+
+CONFIDENCE SCORING
+------------------
+HIGH CONFIDENCE (auto-proceed):
+- Ref_number matches
+- Single open bill for vendor
+- Exact amount and date match
+
+MEDIUM CONFIDENCE (show and confirm):
+- Vendor and amount match
+- Date within reasonable range
+- Only bill that makes sense
+
+LOW CONFIDENCE (require selection):
+- Multiple possible bills
+- Amount doesn't match exactly
+- Date outside expected range
+- Vendor name fuzzy matched
+
+ERROR PREVENTION
+----------------
+NEVER:
+- Apply payment to wrong week's bill
+- Create duplicate payments
+- Guess when multiple bills exist
+- Use wrong payment date
+
+ALWAYS:
+- Verify vendor name in QB first
+- Check for existing payments
+- Use document date, not today
+- Confirm when any doubt exists
+
+VALIDATION BEFORE PAYMENT
+-------------------------
+Final checklist before PAY_BILLS:
+☐ Vendor confirmed in QuickBooks
+☐ Bill identified with ref_number
+☐ Amount matches (exact or confirmed)
+☐ Date is from payment document
+☐ No duplicate payment exists
+☐ User confirmed if any ambiguity

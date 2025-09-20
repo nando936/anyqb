@@ -274,8 +274,9 @@ class BillRepository:
                         bill = bill_list.GetAt(i)
                         # Use _parse_bill_from_sdk to get complete bill data including payment info
                         bill_dict = self._parse_bill_from_sdk(bill)
-                        # _parse_bill_from_sdk already handles line items and payment info
-                        bills.append(bill_dict)
+                        # Only append if bill_dict is not None
+                        if bill_dict is not None:
+                            bills.append(bill_dict)
 
                 logger.info(f"Found {len(bills)} bills in date range")
             else:

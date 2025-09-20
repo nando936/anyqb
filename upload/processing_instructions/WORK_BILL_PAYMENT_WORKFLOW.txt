@@ -1,0 +1,195 @@
+WORK BILL PAYMENT WORKFLOW
+==========================
+
+CRITICAL: This workflow is for processing payments to daily workers (Jaciel, Adrian, Elmer, Selvin, Bryan, etc.)
+who have open work bills in QuickBooks. ALWAYS use PAY_BILLS command, NEVER CREATE_CHECK.
+
+OVERVIEW
+--------
+Daily workers have weekly work bills that track days worked. Payments are made via:
+- ATM withdrawals (Jaciel)
+- Zelle transfers (Adrian, Elmer, Selvin, Bryan)
+- Checks or cash
+
+All payments MUST be linked to the specific work bill they're paying.
+
+STEP 1: IDENTIFY PAYMENT DOCUMENT
+----------------------------------
+Look for these document types:
+- Check images (front and back)
+- ATM withdrawal receipts
+- Bank statements showing Zelle transfers
+- Cash payment receipts
+- Wire transfer confirmations
+
+STEP 2: EXTRACT PAYMENT DETAILS (REQUIRED)
+-------------------------------------------
+MUST extract ALL of these from the document:
+
+1. PAYMENT DATE (CRITICAL):
+   - Date shown on check
+   - ATM transaction date
+   - Zelle transfer date
+   - Bank statement date
+   - NEVER use today's date - ALWAYS use document date
+
+2. VENDOR NAME:
+   - Written on check "Pay to" line
+   - Zelle recipient name
+   - ATM memo/notes
+   - Common workers: Jaciel, Adrian, Elmer, Selvin, Bryan
+
+3. AMOUNT:
+   - Check amount (written and numeric)
+   - ATM withdrawal amount
+   - Zelle transfer amount
+   - Must match exactly
+
+4. PAYMENT METHOD:
+   - Check number (if check)
+   - "ATM" (for ATM withdrawals)
+   - "Zelle" (for Zelle transfers)
+   - "Cash" (for cash payments)
+
+STEP 3: FIND MATCHING WORK BILL
+--------------------------------
+Use GET_WORK_BILL command to find the open bill:
+
+python qbc.py GET_WORK_BILL vendor_name="[vendor]"
+
+This will show:
+- Bill ref_number (e.g., "ja_01/12-01/18/25")
+- Amount due
+- Week dates
+- Payment status
+
+STEP 4: MATCH VALIDATION
+-------------------------
+Verify the payment matches the bill:
+
+EXACT MATCH REQUIRED:
+- Vendor name matches exactly
+- Payment amount = Bill amount (or close)
+- Payment date is ON or AFTER bill date
+- Payment date is within reasonable range (not months old)
+
+IF MULTIPLE BILLS EXIST:
+- Show all open bills to user
+- Include ref_number, amount, and week dates
+- ASK: "Which bill is this payment for?"
+- NEVER guess - require explicit confirmation
+
+IF NO MATCHING BILL:
+- Check if vendor name is slightly different
+- Try fuzzy matching (e.g., "Jaciel" vs "Jaciel Lopez")
+- Show nearby bills by date
+- ASK: "Should this payment be applied to [specific bill]?"
+
+STEP 5: PREPARE PAY_BILLS COMMAND
+----------------------------------
+Build the command with ALL required parameters:
+
+python qbc.py PAY_BILLS \
+  vendor_name="[exact_vendor_name]" \
+  amount=[payment_amount] \
+  payment_date="[date_from_document]" \
+  ref_number="[bill_ref_number]" \
+  check_number="[check#_or_ATM_or_Zelle]" \
+  bank_account="[account_name]" \
+  memo="Payment for week [dates]"
+
+CRITICAL PARAMETERS:
+- payment_date: MUST be date from document (YYYY-MM-DD format)
+- ref_number: Ensures payment links to correct bill
+- check_number: Based on payment method (see below)
+
+STEP 6: PAYMENT METHOD MAPPING
+-------------------------------
+Set check_number based on vendor and payment type:
+
+JACIEL:
+- ATM withdrawal → check_number="ATM"
+- Cash payment → check_number="ATM"
+- Check → Use actual check number
+
+ADRIAN, ELMER, SELVIN, BRYAN:
+- Zelle transfer → check_number="Zelle"
+- Bank transfer → check_number="Zelle"
+- Check → Use actual check number
+
+DEFAULT:
+- If payment method unclear → ASK user
+- Never leave blank
+
+STEP 7: EXECUTE AND CONFIRM
+----------------------------
+1. Show complete command to user:
+   "Ready to pay Jaciel's bill ja_01/12-01/18/25 for $650.00 with payment dated 01/15/2025"
+
+2. Execute PAY_BILLS command
+
+3. Verify success:
+   - Should return "[OK] Payment created for [vendor]: $[amount]"
+   - Should include Transaction ID
+
+4. If error:
+   - Check if bill already paid
+   - Verify vendor name spelling
+   - Confirm bill ref_number exists
+
+STEP 8: FILE MANAGEMENT
+-----------------------
+After successful payment:
+
+1. Move payment document to:
+   processed_transactions/[vendor]/[date]_payment_[amount].jpg
+
+2. Create metadata file:
+   - Payment date
+   - Bill ref_number paid
+   - Transaction ID
+   - Payment method
+
+COMMON ERRORS AND SOLUTIONS
+----------------------------
+"No unpaid bills found":
+- Bill might already be paid
+- Check with GET_WORK_BILL to see status
+- Verify ref_number
+
+"Multiple unpaid bills found":
+- Must specify ref_number parameter
+- Show all bills to user for selection
+
+"Vendor not found":
+- Check exact spelling in QuickBooks
+- Try fuzzy matching
+- May need to use full name
+
+"Bill with ref_number not found":
+- Verify ref_number format
+- Check if bill exists with GET_WORK_BILL
+- Ensure vendor name matches
+
+VALIDATION CHECKLIST
+--------------------
+Before executing PAY_BILLS:
+☐ Payment date extracted from document (not today)
+☐ Vendor name verified in QuickBooks
+☐ Amount matches bill amount
+☐ Bill ref_number identified
+☐ Payment method determined (ATM/Zelle/Check#)
+☐ Bank account specified
+
+NEVER:
+- Use CREATE_CHECK for worker payments
+- Guess which bill to pay
+- Use today's date instead of document date
+- Skip bill matching step
+- Process payment without bill ref_number
+
+ALWAYS:
+- Link payment to specific work bill
+- Use actual payment date from document
+- Confirm with user if ambiguous
+- Apply vendor-specific payment methods

@@ -1,0 +1,213 @@
+<?xml version="1.0" ?>
+<QBXML>
+<QBXMLMsgsRs>
+<ItemReceiptQueryRs requestID="1" statusCode="0" statusSeverity="Info" statusMessage="Status OK">
+<ItemReceiptRet>
+<TxnID>1BA65-1448061876</TxnID>
+<TimeCreated>2015-11-20T17:24:36-06:00</TimeCreated>
+<TimeModified>2015-11-20T17:24:36-06:00</TimeModified>
+<EditSequence>1448061876</EditSequence>
+<TxnNumber>9701</TxnNumber>
+<VendorRef>
+<ListID>800003A5-1417020872</ListID>
+<FullName>Kelvin Alexander Maldonado Cruz</FullName>
+</VendorRef>
+<APAccountRef>
+<ListID>8000002B-1394899362</ListID>
+<FullName>Accounts Payable</FullName>
+</APAccountRef>
+<TxnDate>2015-11-20</TxnDate>
+<TotalAmount>0.00</TotalAmount>
+<Memo>Received items (bill to follow)</Memo>
+<ExpenseLineRet>
+<TxnLineID>1BA67-1448061876</TxnLineID>
+<AccountRef>
+<ListID>8000000E-1394855462</ListID>
+<FullName>Subcontractors Expense</FullName>
+</AccountRef>
+<Amount>0.00</Amount>
+</ExpenseLineRet>
+<ExpenseLineRet>
+<TxnLineID>1BA68-1448061876</TxnLineID>
+<AccountRef>
+<ListID>80000020-1394855463</ListID>
+<FullName>Shop Repairs and Maintenance</FullName>
+</AccountRef>
+<Amount>0.00</Amount>
+</ExpenseLineRet>
+</ItemReceiptRet>
+<ItemReceiptRet>
+<TxnID>1BA69-1448062118</TxnID>
+<TimeCreated>2015-11-20T17:28:38-06:00</TimeCreated>
+<TimeModified>2015-11-20T17:28:38-06:00</TimeModified>
+<EditSequence>1448062118</EditSequence>
+<TxnNumber>9702</TxnNumber>
+<VendorRef>
+<ListID>800003A5-1417020872</ListID>
+<FullName>Kelvin Alexander Maldonado Cruz</FullName>
+</VendorRef>
+<APAccountRef>
+<ListID>8000002B-1394899362</ListID>
+<FullName>Accounts Payable</FullName>
+</APAccountRef>
+<TxnDate>2015-11-20</TxnDate>
+<TotalAmount>0.00</TotalAmount>
+<Memo>Received items (bill to follow)</Memo>
+<ExpenseLineRet>
+<TxnLineID>1BA6B-1448062118</TxnLineID>
+<AccountRef>
+<ListID>8000000E-1394855462</ListID>
+<FullName>Subcontractors Expense</FullName>
+</AccountRef>
+<Amount>0.00</Amount>
+</ExpenseLineRet>
+<ExpenseLineRet>
+<TxnLineID>1BA6C-1448062118</TxnLineID>
+<AccountRef>
+<ListID>80000020-1394855463</ListID>
+<FullName>Shop Repairs and Maintenance</FullName>
+</AccountRef>
+<Amount>0.00</Amount>
+</ExpenseLineRet>
+</ItemReceiptRet>
+<ItemReceiptRet>
+<TxnID>25FE5-1483445314</TxnID>
+<TimeCreated>2017-01-03T06:08:34-06:00</TimeCreated>
+<TimeModified>2019-01-16T05:26:29-06:00</TimeModified>
+<EditSequence>1547637989</EditSequence>
+<TxnNumber>13922</TxnNumber>
+<VendorRef>
+<ListID>8000010A-1403268818</ListID>
+<FullName>The Raised Panel Door Factory Inc</FullName>
+</VendorRef>
+<APAccountRef>
+<ListID>8000002B-1394899362</ListID>
+<FullName>Accounts Payable</FullName>
+</APAccountRef>
+<TxnDate>2016-12-08</TxnDate>
+<TotalAmount>0.00</TotalAmount>
+<RefNumber>45283-001</RefNumber>
+<Memo>VOID: Received items (bill to follow)</Memo>
+<ItemLineRet>
+<TxnLineID>25FE7-1483445314</TxnLineID>
+<ItemRef>
+<ListID>80000056-1397082248</ListID>
+<FullName>Plywood:Birch 3/4 4x8 18mm</FullName>
+</ItemRef>
+<Desc>Birch 3/4 4x8 (50)</Desc>
+<Quantity>0</Quantity>
+<Cost>28.00</Cost>
+<Amount>0.00</Amount>
+</ItemLineRet>
+<ItemLineRet>
+<TxnLineID>25FE8-1483445314</TxnLineID>
+<ItemRef>
+<ListID>80000058-1397082680</ListID>
+<FullName>Plywood:Birch 1/4 5.2mmx4x8</FullName>
+</ItemRef>
+<Desc>Birch (5) 5.2mmx4x8</Desc>
+<Quantity>0</Quantity>
+<Cost>12.66525</Cost>
+<Amount>0.00</Amount>
+</ItemLineRet>
+<ItemLineRet>
+<TxnLineID>25FE9-1483445314</TxnLineID>
+<ItemRef>
+<ListID>8000007E-1403358600</ListID>
+<FullName>Plywood:MDF 3/4</FullName>
+</ItemRef>
+<Desc>MDF  (10)</Desc>
+<Quantity>0</Quantity>
+<Cost>29.50</Cost>
+<Amount>0.00</Amount>
+</ItemLineRet>
+</ItemReceiptRet>
+<ItemReceiptRet>
+<TxnID>51B33-1757505763</TxnID>
+<TimeCreated>2025-09-10T07:02:43-06:00</TimeCreated>
+<TimeModified>2025-09-10T07:02:43-06:00</TimeModified>
+<EditSequence>1757505763</EditSequence>
+<TxnNumber>23256</TxnNumber>
+<VendorRef>
+<ListID>80001615-1757505695</ListID>
+<FullName>TEST_VENDOR_RECEIPT</FullName>
+</VendorRef>
+<APAccountRef>
+<ListID>8000002B-1394899362</ListID>
+<FullName>Accounts Payable</FullName>
+</APAccountRef>
+<TxnDate>2025-09-10</TxnDate>
+<TotalAmount>300.00</TotalAmount>
+<RefNumber>TestReceipt-Partial</RefNumber>
+<Memo>Testing partial receipt - 30 of 100 units</Memo>
+<LinkedTxn>
+<TxnID>51B30-1757505722</TxnID>
+<TxnType>PurchaseOrder</TxnType>
+<TxnDate>2025-09-10</TxnDate>
+<RefNumber>269069</RefNumber>
+<LinkType>QUANTYPE</LinkType>
+<Amount>0.00</Amount>
+</LinkedTxn>
+<ItemLineRet>
+<TxnLineID>51B35-1757505763</TxnLineID>
+<ItemRef>
+<ListID>80000136-1705584079</ListID>
+<FullName>job materials</FullName>
+</ItemRef>
+<Desc>job materials</Desc>
+<Quantity>100</Quantity>
+<Cost>3.00</Cost>
+<Amount>300.00</Amount>
+<CustomerRef>
+<ListID>80001614-1757430566</ListID>
+<FullName>jeck:Jeff trailer</FullName>
+</CustomerRef>
+<BillableStatus>Billable</BillableStatus>
+</ItemLineRet>
+</ItemReceiptRet>
+<ItemReceiptRet>
+<TxnID>51B3E-1757506538</TxnID>
+<TimeCreated>2025-09-10T07:15:38-06:00</TimeCreated>
+<TimeModified>2025-09-10T07:15:38-06:00</TimeModified>
+<EditSequence>1757506538</EditSequence>
+<TxnNumber>23259</TxnNumber>
+<VendorRef>
+<ListID>80001615-1757505695</ListID>
+<FullName>TEST_VENDOR_RECEIPT</FullName>
+</VendorRef>
+<APAccountRef>
+<ListID>8000002B-1394899362</ListID>
+<FullName>Accounts Payable</FullName>
+</APAccountRef>
+<TxnDate>2025-09-10</TxnDate>
+<TotalAmount>100.00</TotalAmount>
+<RefNumber>QBFC-Partial-Test</RefNumber>
+<Memo>Testing partial receipt with QBFC - 50 units</Memo>
+<LinkedTxn>
+<TxnID>51B38-1757505854</TxnID>
+<TxnType>PurchaseOrder</TxnType>
+<TxnDate>2025-09-10</TxnDate>
+<RefNumber>269070</RefNumber>
+<LinkType>QUANTYPE</LinkType>
+<Amount>0.00</Amount>
+</LinkedTxn>
+<ItemLineRet>
+<TxnLineID>51B40-1757506538</TxnLineID>
+<ItemRef>
+<ListID>80000136-1705584079</ListID>
+<FullName>job materials</FullName>
+</ItemRef>
+<Desc>job materials</Desc>
+<Quantity>50</Quantity>
+<Cost>2.00</Cost>
+<Amount>100.00</Amount>
+<CustomerRef>
+<ListID>80001614-1757430566</ListID>
+<FullName>jeck:Jeff trailer</FullName>
+</CustomerRef>
+<BillableStatus>Billable</BillableStatus>
+</ItemLineRet>
+</ItemReceiptRet>
+</ItemReceiptQueryRs>
+</QBXMLMsgsRs>
+</QBXML>
